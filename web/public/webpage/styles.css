@@ -1,0 +1,60 @@
+/* 공통 버튼 스타일 */
+.styled-button {
+    background-color: #ffffff;
+    color: #000000;
+    width: 200px;
+    height: 50px;
+    font-size: 16px;
+    border: 1px solid #cccccc;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    height: 100vh;
+    margin: 150px;
+    flex-direction: column;
+    text-align: center;
+}
+
+/* 버튼 호버 및 클릭 효과 */
+.styled-button:hover, .styled-button:active {
+    background-color: #f0f0f0;
+}
+
+h1 {
+    font-size: 36px;       /* 제목의 크기 */
+    color: #333;           /* 제목 글자 색상 */
+    margin: 0;             /* 제목과 다른 요소들 간의 여백 제거 */
+    position: absolute;    /* 절대 위치 지정 */
+    top: 20px;             /* 화면 상단에서 20px 떨어지게 설정 */
+    left: 20px;            /* 화면 왼쪽에서 20px 떨어지게 설정 */
+    font-weight: bold;     /* 제목 글씨 굵게 */
+}
+
+/* 소제목 스타일 */
+h2 {
+    margin-top: 40px;   
+    margin-bottom: 20px;
+    font-size: 24px;
+    color: #333;
+}
+
+/* VM 데이터 표시 영역 스타일 */
+#vm-data-container {
+    background-color: #000000;  /* 검은 배경 */
+    color: #ffffff;  /* 흰 글자 색상 */
+    padding: 20px;  /* 안쪽 여백 */
+    margin-top: 20px;  /* 상단 간격 */
+    width: 600px;  /* 너비를 80%로 설정 */
+    height: 300px;  /* 고정 높이 */
+    overflow-y: scroll;  /* 내용이 넘칠 경우 스크롤 */
+    font-family: "Courier New", Courier, monospace;  /* 프롬프트 창 느낌의 폰트 */
+    white-space: pre-wrap;  /* 줄 바꿈 및 공백 처리 */
+    border: 1px solid #333;  /* 경계선 추가 */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);  /* 그림자 효과 */
+}
