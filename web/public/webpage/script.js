@@ -31,18 +31,16 @@ function showStatusMessage(message, type) {
 
 // 버튼 클릭 이벤트 리스너 추가
 const buttonsConfig = [
-    { id: 'VM_Button', workflow: 'playbook/playbook.yml' },
-    { id: 'Container_Button', workflow: 'playbook/container_playbook.yml' },
-    { id: 'K8S_Button', workflow: 'playbook/k8s_playbook.yml' },
-    { id: 'Workload_Button', workflow: 'playbook/workload_playbook.yml' },
-    { id: 'DB_Button', workflow: 'playbook/db_playbook.yml' },
-    { id: 'Storage_Button', workflow: 'playbook/storage_playbook.yml' },
-    { id: 'Backup_Button', workflow: 'playbook/backup_playbook.yml' },
-    { id: 'Monitor_Button', workflow: 'playbook/monitor_playbook.yml' },
-    { id: 'DR_Button', workflow: 'playbook/dr_playbook.yml' },
-    { id: 'Start_Button', workflow: 'test.yml' },
-    { id: 'Stop_Button', workflow: 'stop-service' }
+    { id: 'Web_Button', workflow: 'playbook/playbook.yml' },
+    { id: 'WebStop_Button', workflow: 'stop-service' },
+    { id: 'K8s_Button', workflow: 'playbook/container_playbook.yml' },
+    { id: 'K8sStop_Button', workflow: 'stop-service' }, // 올바르게 수정
+    { id: 'LB_Button', workflow: 'playbook/k8s_playbook.yml' },
+    { id: 'LBStop_Button', workflow: 'stop-service' },
+    { id: 'DB_Button', workflow: 'test.yml' },
+    { id: 'DBStop_Button', workflow: 'stop-service' }
 ];
+
 
 // 각 버튼에 대해 클릭 이벤트 리스너 추가
 buttonsConfig.forEach(config => {
@@ -50,18 +48,22 @@ buttonsConfig.forEach(config => {
     
     if (button) {
         button.addEventListener('click', () => {
-            if (config.id === 'Stop_Button') {
-                // Stop 버튼 클릭 시 서버에 서비스 중지 및 DB 데이터 삭제 요청
+            // Stop 버튼 클릭 시 서버에 서비스 중지 및 DB 데이터 삭제 요청
+            if (config.id.includes('Stop')) {
                 stopServiceAndDeleteData();
             } else {
                 // GitHub Action을 트리거하는 함수 호출
                 triggerGitHubAction(config.workflow);
+                
+                // GitHub Action 후 VM 데이터도 불러오기
+                loadServiceData(config.workflow); // 각 서비스에 맞는 데이터를 로드
             }
         });
     } else {
         console.warn(`Button with ID ${config.id} not found.`);
     }
 });
+
 
 // 서비스 중지 및 DB 데이터 삭제 함수
 function stopServiceAndDeleteData() {
@@ -85,19 +87,18 @@ function stopServiceAndDeleteData() {
 }
 
 // VM 데이터 로드 함수 (로딩 메시지 및 시간 표시)
-function loadVMData() {
+function loadServiceData(workflow) {
     const vmDataContainer = document.getElementById('vm-data-container');
     
     if (vmDataContainer) {
         // 로딩 메시지 표시
         vmDataContainer.innerHTML = 'Loading VM data...';
 
-        // fetch 요청
-        fetch('/vm-data')
+        // fetch 요청: 각 서비스에 맞는 VM 데이터 요청
+        fetch(`/vm-data?service=${workflow}`)  // 예시: 서비스에 맞는 쿼리 추가
             .then(response => response.json())
             .then(data => {
                 if (data && data.length > 0) {
-                    // VM 데이터를 HTML로 변환하여 vm-data-container에 삽입
                     const table = document.createElement('table');
                     table.style.width = '100%';
                     table.style.borderCollapse = 'collapse';
@@ -106,7 +107,7 @@ function loadVMData() {
                     // 테이블 헤더 생성
                     const header = table.createTHead();
                     const headerRow = header.insertRow();
-                    const headers = ['ID', 'Workspace ID', 'Hostname', 'IP Address', 'Status', 'Created At'];
+                    const headers = ['Template_id', 'Hostname', 'IP Address', 'Status', 'Deploy_method', 'Created At'];
                     headers.forEach(headerText => {
                         const th = document.createElement('th');
                         th.style.border = '1px solid #ccc';
@@ -141,6 +142,7 @@ function loadVMData() {
             });
     }
 }
+
 
 // 페이지 로드 시 VM 데이터 로드
 document.addEventListener('DOMContentLoaded', loadVMData);

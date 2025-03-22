@@ -10,37 +10,44 @@
     <h1>Solmakase</h1>
     <hr class="horizontal-line">
 
-    <h2>Hosting Environments</h2>
+    <h2>Web</h2>
     <div class="button-group">
-        <button id="VM_Button" class="styled-button">VM</button>
-        <button id="Container_Button" class="styled-button">Container</button>
-        <button id="K8S_Button" class="styled-button">K8S</button>
+        <button id="Web_Button" class="styled-button">Web</button>
+        <button id="WebStop_Button" class="styled-button">Web stop</button>
     </div>
 
-    <h2>Essential infrastructure</h2>
-    <div class="button-group">
-        <button id="Workload_Button" class="styled-button">Workload</button>
-        <button id="DB_Button" class="styled-button">DB</button>
-        <button id="Storage_Button" class="styled-button">Storage</button>
+    <div id="Web-service-data-container">
+        <!-- Web 데이터는 여기에 동적으로 표시됩니다 -->
     </div>
 
-    <h2>Advanced Functions</h2>
+    <h2>Kubernetes</h2>
     <div class="button-group">
-        <button id="Backup_Button" class="styled-button">Backup</button>
-        <button id="Monitor_Button" class="styled-button">Monitor</button>
-        <button id="DR_Button" class="styled-button">DR</button>
+        <button id="K8s_Button" class="styled-button">K8s</button>
+        <button id="K8sStop_Button" class="styled-button">K8s stop</button>
     </div>
 
-    <h2>Test</h2>
-    <div class="button-group">
-        <button id="Start_Button" class="styled-button">Start</button>
-        <button id="Stop_Button" class="styled-button">Stop</button>
+    <div id="K8s-service-data-container">
+        <!-- Kubernetes 데이터는 여기에 동적으로 표시됩니다 -->
     </div>
 
-    <!-- VM 데이터 표시 영역 -->
-    <h2>VM Data</h2>
-    <div id="vm-data-container">
-        <!-- VM 데이터는 여기에 동적으로 표시됩니다 -->
+    <h2>Loadbalance</h2>
+    <div class="button-group">
+        <button id="LB_Button" class="styled-button">Loadbalance</button>
+        <button id="LBStop_Button" class="styled-button">Loadbalance stop</button>
+    </div>
+
+    <div id="LB-service-data-container">
+        <!-- Loadbalance 데이터는 여기에 동적으로 표시됩니다 -->
+    </div>
+
+    <h2>DataBase</h2>
+    <div class="button-group">
+        <button id="DB_Button" class="styled-button">Database</button>
+        <button id="DBStop_Button" class="styled-button">Database stop</button>
+    </div>
+
+    <div id="DB-service-data-container">
+        <!-- Database 데이터는 여기에 동적으로 표시됩니다 -->
     </div>
 
     <script src="/webpage/script.js"></script>

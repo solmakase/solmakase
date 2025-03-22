@@ -36,10 +36,16 @@ app.use(express.json());
 
 // VM 데이터를 조회하는 API 추가
 app.get('/vm-data', async (req, res) => {
-    try {
-        // PostgreSQL에서 VM 데이터를 조회하는 SQL 쿼리
-        const result = await client.query('SELECT * FROM vm');
+    const service = req.query.service;  // 요청에서 서비스 이름을 받음
 
+    try {
+    // PostgreSQL에서 VM 데이터를 조회하는 SQL 쿼리
+        let query = 'SELECT * FROM VM';  // 기본 쿼리
+        if (service) {
+            query += ` WHERE service_name = $1`;  // 서비스 이름에 맞는 데이터만 조회
+        }
+
+        const result = await client.query(query, [service]);  // 서비스 이름을 조건으로 쿼리 실행
         // 결과를 클라이언트에 JSON 형태로 응답
         res.json(result.rows);
     } catch (error) {
