@@ -36,23 +36,26 @@ app.use(express.json());
 
 // VM 데이터를 조회하는 API 추가
 app.get('/vm-data', async (req, res) => {
-    const service = req.query.service;  // 요청에서 서비스 이름을 받음
+    const deployMethod = req.query.deploy_method;  // deploy_method 값 받기
 
     try {
-    // PostgreSQL에서 VM 데이터를 조회하는 SQL 쿼리
+        // PostgreSQL에서 VM 데이터를 조회하는 SQL 쿼리
         let query = 'SELECT * FROM VM';  // 기본 쿼리
-        if (service) {
-            query += ` WHERE service_name = $1`;  // 서비스 이름에 맞는 데이터만 조회
+        let values = [];
+
+        if (deployMethod) {
+            query += ' WHERE deploy_method = $1';  // deploy_method로 필터링
+            values.push(deployMethod);
         }
 
-        const result = await client.query(query, [service]);  // 서비스 이름을 조건으로 쿼리 실행
-        // 결과를 클라이언트에 JSON 형태로 응답
-        res.json(result.rows);
+        const result = await client.query(query, values);  // 조건에 맞는 쿼리 실행
+        res.json(result.rows);  // 결과를 클라이언트에 JSON 형태로 응답
     } catch (error) {
         console.error('Error fetching VM data:', error);
         res.status(500).json({ message: 'Error fetching VM data' });
     }
 });
+
 
 // import.meta.url로 현재 파일 경로를 가져오고, 이를 fileURLToPath로 변환
 const __filename = fileURLToPath(import.meta.url);
@@ -77,7 +80,7 @@ app.post('/trigger-github-action', async (req, res) => {
 
     const token = process.env.GITHUB_TOKEN;  // 환경 변수에서 GitHub 토큰 가져오기
 
-    // GitHub 토큰이 없거나 유효하지 않은 경우 처리
+    // GitHub 토큰이 없으면 오류 응답을 보냅니다.
     if (!token) {
         console.error('GitHub token is missing or invalid!');
         return res.status(500).json({ message: 'GitHub token is missing or invalid!' });
@@ -112,6 +115,7 @@ app.post('/trigger-github-action', async (req, res) => {
 
         // 응답이 실패한 경우, 응답 내용을 처리합니다.
         const errorResponse = await response.json();
+        console.error('GitHub Action error:', errorResponse);
         return res.status(response.status).json({
             message: `GitHub Action failed: ${errorResponse.message || 'Unknown error'}`
         });
@@ -123,34 +127,65 @@ app.post('/trigger-github-action', async (req, res) => {
     }
 });
 
+
 // Stop-Service API - 서비스 중지 및 DB 데이터 삭제
 app.post('/stop-service', async (req, res) => {
-    try {
-        // 1. kubernetes 서비스 중지
-        const remoteHost = "root@192.168.30.32"; // ip 이름 변경하기기
-        const stopServiceCommand = 'kubectl delete pod nginx-pod --namespace=default';  // 서비스 이름을 실제로 맞게 수정
-        
-        // SSH를 통해 원격 서버에서 명령어 실행
-        execSync(`ssh ${remoteHost} '${stopServiceCommand}'`, { stdio: 'inherit' });
-    
-        console.log('service stopped successfully on the remote server!');
-    } catch (error) {
-        console.error('Error stopping service on remote server:', error.message);
-        return res.status(500).json({ message: 'Failed to stop the service on remote server.' });
+    const deployMethod = req.body.deploy_method;  // 클라이언트에서 전달된 deploy_method 값
+
+    if (!deployMethod) {
+        return res.status(400).json({ message: 'Deploy method is required to stop the service.' });
     }
-    
+
     try {
-        // 2. DB 연결 및 데이터 삭제
-        const deleteQuery = 'DELETE FROM vm';  // 데이터를 삭제할 테이블 이름 수정
-        await client.query(deleteQuery);
+        // 1. deploy_method에 해당하는 IP 주소와 호스트명 조회 (vm_data 테이블 사용)
+        const serviceQuery = `
+            SELECT ip_address, hostname
+            FROM VM
+            WHERE deploy_method = $1
+        `;
+        const result = await client.query(serviceQuery, [deployMethod]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: `No services found for deploy method: ${deployMethod}` });
+        }
+
+        // 2. 각 IP에 대해 서비스 종료 명령 실행
+        const stopServiceCommand = process.env.stopServiceCommand;  // 환경 변수에서 종료 명령 불러오기
+        for (const row of result.rows) {
+            const remoteHost = row.ip_address;  // 서비스가 배포된 IP 주소
+            const stopCommand = stopServiceCommand.replace("{serviceName}", deployMethod);  // deploy_method를 서비스 이름으로 사용
+
+            console.log(`Stopping service on IP: ${remoteHost}`);
+
+            // SSH를 통해 원격 서버에서 명령어 실행
+            try {
+                execSync(`ssh ${remoteHost} '${stopCommand}'`, { stdio: 'inherit' });
+                console.log(`Service stopped successfully on IP: ${remoteHost}`);
+            } catch (error) {
+                console.error(`Error stopping service on IP: ${remoteHost}`, error.message);
+            }
+        }
+
+    } catch (error) {
+        console.error('Error fetching services and IPs from database:', error.message);
+        return res.status(500).json({ message: 'Failed to fetch services and IPs from the database.' });
+    }
+
+    try {
+        // 3. DB에서 deploy_method에 해당하는 데이터 삭제
+        let deleteQuery = 'DELETE FROM VM WHERE deploy_method = $1';  // deploy_method에 해당하는 데이터만 삭제
+        let values = [deployMethod];  // 전달된 deploy_method 값을 쿼리에 전달
+
+        await client.query(deleteQuery, values);
 
         // 서비스 중지 및 DB 삭제 완료 메시지
-        res.json({ message: 'Service stopped and database data deleted successfully!' });
+        res.json({ message: `Service stopped for deploy method ${deployMethod} on all corresponding IPs and data deleted successfully!` });
     } catch (error) {
         console.error('Error stopping service and deleting data:', error);
-        res.status(500).json({ message: 'Failed to stop the service and delete the data.' });
+        return res.status(500).json({ message: 'Failed to stop the service and delete the data.' });
     }
 });
+
 
 // 서버 시작
 app.listen(port, () => {

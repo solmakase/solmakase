@@ -31,32 +31,27 @@ function showStatusMessage(message, type) {
 
 // 버튼 클릭 이벤트 리스너 추가
 const buttonsConfig = [
-    { id: 'Web_Button', workflow: 'playbook/playbook.yml' },
-    { id: 'WebStop_Button', workflow: 'stop-service' },
-    { id: 'K8s_Button', workflow: 'playbook/container_playbook.yml' },
-    { id: 'K8sStop_Button', workflow: 'stop-service' }, // 올바르게 수정
-    { id: 'LB_Button', workflow: 'playbook/k8s_playbook.yml' },
-    { id: 'LBStop_Button', workflow: 'stop-service' },
-    { id: 'DB_Button', workflow: 'test.yml' },
-    { id: 'DBStop_Button', workflow: 'stop-service' }
+    { id: 'Web_Button', workflow: 'playbook/playbook.yml', deploy_method: 'Web' },
+    { id: 'WebStop_Button', workflow: 'stop-service', deploy_method: 'Web' },
+    { id: 'K8s_Button', workflow: 'playbook/container_playbook.yml', deploy_method: 'Kubernetes' },
+    { id: 'K8sStop_Button', workflow: 'stop-service', deploy_method: 'Kubernetes' }, 
+    { id: 'LB_Button', workflow: 'playbook/k8s_playbook.yml', deploy_method: 'Loadbalance' },
+    { id: 'LBStop_Button', workflow: 'stop-service', deploy_method: 'Loadbalance' },
+    { id: 'DB_Button', workflow: 'test.yml', deploy_method: 'Database' },
+    { id: 'DBStop_Button', workflow: 'stop-service', deploy_method: 'Database' }
 ];
 
-
-// 각 버튼에 대해 클릭 이벤트 리스너 추가
+// 버튼 클릭 이벤트 리스너 추가
 buttonsConfig.forEach(config => {
     const button = document.getElementById(config.id);
     
     if (button) {
         button.addEventListener('click', () => {
-            // Stop 버튼 클릭 시 서버에 서비스 중지 및 DB 데이터 삭제 요청
-            if (config.id.includes('Stop')) {
-                stopServiceAndDeleteData();
+            if (isStopButton(config.id)) {
+                stopServiceAndDeleteData(config.deploy_method);  // deploy_method 전달
             } else {
-                // GitHub Action을 트리거하는 함수 호출
                 triggerGitHubAction(config.workflow);
-                
-                // GitHub Action 후 VM 데이터도 불러오기
-                loadServiceData(config.workflow); // 각 서비스에 맞는 데이터를 로드
+                loadServiceData(config.workflow, config.deploy_method);
             }
         });
     } else {
@@ -64,18 +59,31 @@ buttonsConfig.forEach(config => {
     }
 });
 
+// Stop 버튼 여부 확인 함수
+function isStopButton(buttonId) {
+    return buttonId.includes('Stop');
+}
 
 // 서비스 중지 및 DB 데이터 삭제 함수
-function stopServiceAndDeleteData() {
-    showStatusMessage('Stopping service and deleting data...', 'info');
+function stopServiceAndDeleteData(deployMethod) {
+    showStatusMessage(`Stopping service and deleting ${deployMethod} data...`, 'info');
     
     fetch('/stop-service', {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deploy_method: deployMethod })
     })
     .then(response => response.json())
     .then(data => {
         if (data.message) {
             showStatusMessage(data.message, 'success');
+            // 서비스 중지 후 해당 데이터를 다시 로드하여 화면 갱신
+            loadServiceData('playbook/playbook.yml', 'Web');
+            loadServiceData('playbook/container_playbook.yml', 'Kubernetes');
+            loadServiceData('playbook/k8s_playbook.yml', 'Loadbalance');
+            loadServiceData('test.yml', 'Database');
         } else {
             showStatusMessage('Failed to stop service and delete data.', 'error');
         }
@@ -87,15 +95,40 @@ function stopServiceAndDeleteData() {
 }
 
 // VM 데이터 로드 함수 (로딩 메시지 및 시간 표시)
-function loadServiceData(workflow) {
-    const vmDataContainer = document.getElementById('vm-data-container');
+function loadServiceData(workflow, deployMethod = null) {
+    // 각 서비스에 맞는 컨테이너 선택
+    let serviceDataContainerId = '';
+    switch (deployMethod) {
+        case 'Web':
+            serviceDataContainerId = 'Web-service-data-container';
+            break;
+        case 'Kubernetes':
+            serviceDataContainerId = 'K8s-service-data-container';
+            break;
+        case 'Loadbalance':
+            serviceDataContainerId = 'LB-service-data-container';
+            break;
+        case 'Database':
+            serviceDataContainerId = 'DB-service-data-container';
+            break;
+        default:
+            console.warn('Unknown deploy method:', deployMethod);
+            return;
+    }
     
-    if (vmDataContainer) {
+    const serviceDataContainer = document.getElementById(serviceDataContainerId);
+    
+    if (serviceDataContainer) {
         // 로딩 메시지 표시
-        vmDataContainer.innerHTML = 'Loading VM data...';
+        serviceDataContainer.innerHTML = 'Loading VM data...';
 
-        // fetch 요청: 각 서비스에 맞는 VM 데이터 요청
-        fetch(`/vm-data?service=${workflow}`)  // 예시: 서비스에 맞는 쿼리 추가
+        // fetch 요청: 각 서비스에 맞는 vm_data 요청
+        let url = `/vm-data?service=${workflow}`;
+        if (deployMethod) {
+            url += `&deploy_method=${deployMethod}`;
+        }
+
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 if (data && data.length > 0) {
@@ -116,11 +149,11 @@ function loadServiceData(workflow) {
                         headerRow.appendChild(th);
                     });
 
-                    // 테이블 본문에 VM 데이터 삽입
+                    // 테이블 본문에 vm_data 삽입
                     const tbody = table.createTBody();
-                    data.forEach(vm => {
+                    data.forEach(VM => {
                         const row = tbody.insertRow();
-                        Object.values(vm).forEach(value => {
+                        Object.values(VM).forEach(value => {
                             const cell = row.insertCell();
                             cell.style.border = '1px solid #ccc';
                             cell.style.padding = '8px';
@@ -129,20 +162,25 @@ function loadServiceData(workflow) {
                     });
 
                     // 기존의 내용 지우고 테이블을 추가
-                    vmDataContainer.innerHTML = '';  // 기존 내용 제거
-                    vmDataContainer.appendChild(table);  // 테이블 추가
+                    serviceDataContainer.innerHTML = '';  // 기존 내용 제거
+                    serviceDataContainer.appendChild(table);  // 테이블 추가
                 } else {
                     // 데이터가 없으면 "데이터가 없습니다" 출력
-                    vmDataContainer.innerHTML = 'No VM data available';
+                    serviceDataContainer.innerHTML = 'No VM data available';
                 }
             })
             .catch(error => {
                 console.error('Error loading VM data:', error);
-                vmDataContainer.innerHTML = 'Failed to load VM data.';
+                serviceDataContainer.innerHTML = 'Failed to load VM data.';
             });
     }
 }
 
-
-// 페이지 로드 시 VM 데이터 로드
-document.addEventListener('DOMContentLoaded', loadVMData);
+// 페이지 로드 시 자동으로 각 서비스 데이터 로드
+document.addEventListener('DOMContentLoaded', () => {
+    // 각 서비스에 대해 데이터를 불러옵니다.
+    loadServiceData('playbook/playbook.yml', 'Web');
+    loadServiceData('playbook/container_playbook.yml', 'Kubernetes');
+    loadServiceData('playbook/k8s_playbook.yml', 'Loadbalance');
+    loadServiceData('test.yml', 'Database');
+});

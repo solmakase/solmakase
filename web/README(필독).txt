@@ -17,10 +17,11 @@ npm install pg
 
 
 ## 2. 실행
-.env file - token 변경
-app.js 파일 - const remoteHost = "root@192.168.30.32"; // ip 변경하기
-app.js 파일 - const stopServiceCommand = 'kubectl delete pod nginx-pod --namespace=default';  // 서비스 이름을 실제로 맞게 수정
-app.js 파일 - const deleteQuery = 'DELETE FROM vm_data'; 삭제할 테이블 이름 수정
+.env file:
+    - token 변경
+    - ip address 변경
+    - Service Command 명령어 변경 
+    
 # docker stop: 시스템 명령어(쉘 명령어)를 실행하고, 그 결과를 동기적으로 기다리는 명령어
 
 npm start
