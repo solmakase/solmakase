@@ -14,9 +14,9 @@
 body {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    height: 100vh;
-    margin: 150px;
+    align-items: center;
+    height: 120vh;
+    margin-top: 100px;
     flex-direction: column;
     text-align: center;
 }
@@ -44,14 +44,20 @@ h2 {
     color: #333;
 }
 
+.horizontal-line {
+    border: none;
+    border-top: 2px solid #c2c2c2;  /* 선 두께와 색상 */
+    width: 100%;  /* 화면 너비에 맞게 */
+}
+
 /* VM 데이터 표시 영역 스타일 */
 #vm-data-container {
     background-color: #000000;  /* 검은 배경 */
     color: #ffffff;  /* 흰 글자 색상 */
     padding: 20px;  /* 안쪽 여백 */
-    margin-top: 20px;  /* 상단 간격 */
+    
     width: 600px;  /* 너비를 80%로 설정 */
-    height: 300px;  /* 고정 높이 */
+    height: 500px;  /* 고정 높이 */
     overflow-y: scroll;  /* 내용이 넘칠 경우 스크롤 */
     font-family: "Courier New", Courier, monospace;  /* 프롬프트 창 느낌의 폰트 */
     white-space: pre-wrap;  /* 줄 바꿈 및 공백 처리 */

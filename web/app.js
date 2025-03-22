@@ -1,5 +1,6 @@
 import express from 'express'; // express를 import
 import path from 'path';
+import { execSync } from 'child_process';  // child_process 모듈을 import
 import { fileURLToPath } from 'url';  // ES 모듈에서 현재 파일의 경로를 가져오기 위해 필요
 import fetch from 'node-fetch';  // ES 모듈 방식으로 import
 import dotenv from 'dotenv';  // dotenv 패키지 사용
@@ -30,6 +31,9 @@ client.connect()
         console.error("Connection error", err.stack);
     });
 
+// 요청 본문을 JSON 형식으로 파싱하는 미들웨어
+app.use(express.json());
+
 // VM 데이터를 조회하는 API 추가
 app.get('/vm-data', async (req, res) => {
     try {
@@ -58,7 +62,7 @@ app.get('/', (req, res) => {
 
 // GitHub Action을 트리거하는 API 엔드포인트
 app.post('/trigger-github-action', async (req, res) => {
-    const workflowFileName = req.query.workflow;  // 클라이언트에서 전달된 workflow 이름
+    const workflowFileName = req.body.workflow;  // 클라이언트에서 전달된 workflow 이름
 
     // workflowFileName이 없으면 오류 응답을 보냅니다.
     if (!workflowFileName) {
@@ -110,6 +114,35 @@ app.post('/trigger-github-action', async (req, res) => {
         // 오류가 발생한 경우 처리
         console.error('Error triggering GitHub Action:', error);
         return res.status(500).json({ message: 'Failed to trigger GitHub Action.' });
+    }
+});
+
+// Stop-Service API - 서비스 중지 및 DB 데이터 삭제
+app.post('/stop-service', async (req, res) => {
+    try {
+        // 1. kubernetes 서비스 중지
+        const remoteHost = "root@192.168.30.32"; // ip 이름 변경하기기
+        const stopServiceCommand = 'kubectl delete pod nginx-pod --namespace=default';  // 서비스 이름을 실제로 맞게 수정
+        
+        // SSH를 통해 원격 서버에서 명령어 실행
+        execSync(`ssh ${remoteHost} '${stopServiceCommand}'`, { stdio: 'inherit' });
+    
+        console.log('service stopped successfully on the remote server!');
+    } catch (error) {
+        console.error('Error stopping service on remote server:', error.message);
+        return res.status(500).json({ message: 'Failed to stop the service on remote server.' });
+    }
+    
+    try {
+        // 2. DB 연결 및 데이터 삭제
+        const deleteQuery = 'DELETE FROM vm';  // 데이터를 삭제할 테이블 이름 수정
+        await client.query(deleteQuery);
+
+        // 서비스 중지 및 DB 삭제 완료 메시지
+        res.json({ message: 'Service stopped and database data deleted successfully!' });
+    } catch (error) {
+        console.error('Error stopping service and deleting data:', error);
+        res.status(500).json({ message: 'Failed to stop the service and delete the data.' });
     }
 });
 
