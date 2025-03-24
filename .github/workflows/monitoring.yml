@@ -1,17 +1,17 @@
-name: k8s 코드 동기화
+name: 모니터링 웹훅
 
 on:
   # 코드 변경 시 자동 실행
   push:
     branches: [ main, master ]
     paths:
-      - 'lb_web/**'  # lb_web 폴더의 변경사항 감지
+      - 'monitoring/**'  # lb-web 폴더의 변경사항 감지
   # 수동으로 실행 가능
   workflow_dispatch:
 
 jobs:
   deploy-ansible:
-    name: k8s 코드 배포
+    name: monitoring 코드 배포
     runs-on: self-hosted
     
     steps:
@@ -24,7 +24,7 @@ jobs:
           echo "AWX_PASSWORD=redhat" >> $GITHUB_ENV
           echo "DB_SERVER=192.168.60.64" >> $GITHUB_ENV
           echo "ANSIBLE_MASTER=192.168.50.11" >> $GITHUB_ENV
-          echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/lb_web" >> $GITHUB_ENV
+          echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/monitoring" >> $GITHUB_ENV
           
       - name: sshpass 설치 확인
         run: |
@@ -41,38 +41,34 @@ jobs:
           echo "PostgreSQL에서 k8s 배포 정보 가져오는 중..."
           
           SERVICE_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
-            "psql -d solmakasedb -t -c \"SELECT name, deploy_script FROM servicetemplate WHERE name = 'lb-web';\"")
-          echo "k8s 서비스 정보:"
+            "psql -d solmakasedb -t -c \"SELECT name, deploy_script FROM servicetemplate WHERE name = 'monitoring';\"")
+          echo "monitoring 서비스 정보:"
           echo "$SERVICE_INFO"
           
-      - name: 디렉토리 확인
+      - name: monitoring 코드 동기화
         run: |
-          echo "현재 디렉토리 구조 확인:"
-          ls -la
-          echo "lb_web 디렉토리 확인:"
-          ls -la ./lb_web || echo "lb_web 디렉토리가 없습니다"
+          echo "monitoring 코드를 NAS 경로에 동기화 중..."
           
-      - name: k8s 코드 동기화
-        run: |
-          echo "k8s 코드를 NAS 경로에 동기화 중..."
+          # 임시 디렉토리 이름을 일관되게 사용
+          TEMP_DIR="/tmp/monitoring"
           
-          # 로컬 lb_web 폴더를 DB 서버의 NAS 경로에 동기화 (sudo 권한 사용)
+          # 로컬 ansible 폴더를 DB 서버의 NAS 경로에 동기화 (sudo 권한 사용)
           sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
-            "echo '${{ env.DB_PASSWORD }}' | sudo -S mkdir -p ${{ env.DB_ANSIBLE_PATH }}"
+            "echo '${{ env.DB_PASSWORD }}' | sudo -S mkdir -p ${{ env.DB_ANSIBLE_PATH }} && mkdir -p ${TEMP_DIR}"
           
           # rsync로 파일 전송 후 원격에서 sudo로 권한 변경
-          sshpass -p "${{ env.DB_PASSWORD }}" rsync -avz --delete ./lb_web/ postgres@${{ env.DB_SERVER }}:/tmp/lb_web_temp/
+          sshpass -p "${{ env.DB_PASSWORD }}" rsync -avz --delete ./monitoring/ postgres@${{ env.DB_SERVER }}:${TEMP_DIR}/
           
           sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
-            "echo '${{ env.DB_PASSWORD }}' | sudo -S rsync -avz --delete /tmp/lb_web_temp/ ${{ env.DB_ANSIBLE_PATH }}/ && \
+            "echo '${{ env.DB_PASSWORD }}' | sudo -S rsync -avz --delete ${TEMP_DIR}/ ${{ env.DB_ANSIBLE_PATH }}/ && \
              echo '${{ env.DB_PASSWORD }}' | sudo -S chown -R postgres:postgres ${{ env.DB_ANSIBLE_PATH }} && \
-             rm -rf /tmp/lb_web_temp"
+             rm -rf ${TEMP_DIR}"
           
-          echo "k8s 코드 동기화 완료"
+          echo "monitoring 코드 동기화 완료"
           
       - name: 배포 완료 알림
         run: |
           echo "================================================="
-          echo "✅ k8s 코드 배포가 완료되었습니다!"
+          echo "✅ monitoring 코드 배포가 완료되었습니다!"
           echo "   배포 경로: ${{ env.DB_SERVER }}:${{ env.DB_ANSIBLE_PATH }}"
           echo "================================================="
