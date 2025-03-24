@@ -1,0 +1,152 @@
+name: Uninstall Services with Ansible on AWX Server (CentOS 9)
+
+on:
+  workflow_dispatch:  # 수동 실행 버튼 활성화
+
+jobs:
+  uninstall:
+    runs-on: self-hosted  # GitHub에 등록한 로컬 Runner 사용
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: 환경 변수 설정
+        run: |
+          echo "DB_PASSWORD=soldesk1." >> $GITHUB_ENV
+          echo "AWX_PASSWORD=awx" >> $GITHUB_ENV
+          echo "DB_SERVER=192.168.10.16" >> $GITHUB_ENV
+          echo "ANSIBLE_MASTER=192.168.10.10" >> $GITHUB_ENV
+          echo "ANSIBLE_PATH=/home/awx/ansible" >> $GITHUB_ENV
+          echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/ansible" >> $GITHUB_ENV
+          echo "WEB_PASSWORD=awx" >> $GITHUB_ENV
+          
+      - name: sshpass 설치 확인 (CentOS/RHEL)
+        run: |
+          if ! command -v sshpass &> /dev/null; then
+            echo "sshpass 설치 중..."
+            sudo dnf install -y epel-release
+            sudo dnf install -y sshpass
+          else
+            echo "sshpass가 이미 설치되어 있습니다."
+          fi
+          
+      - name: PostgreSQL 서버에서 Ansible 정보 조회
+        run: |
+          echo "PostgreSQL에서 Ansible 제거 정보 가져오는 중..."
+          
+          SERVICE_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
+            "psql -d solmakasedb -t -c \"SELECT name, deploy_script FROM servicetemplate WHERE name = 'ansible';\"")
+          echo "Ansible 서비스 정보:"
+          echo "$SERVICE_INFO"
+          
+      - name: Runner에 임시 디렉토리 생성
+        run: |
+          echo "Runner에 임시 디렉토리 생성 중..."
+          mkdir -p /tmp/ansible-temp
+          
+      - name: DB 서버에서 Runner로 파일 다운로드
+        run: |
+          echo "DB 서버에서 Ansible 파일을 Runner로 다운로드 중..."
+          sshpass -p "${{ env.DB_PASSWORD }}" scp -r -o StrictHostKeyChecking=no \
+            postgres@${{ env.DB_SERVER }}:${{ env.DB_ANSIBLE_PATH }}/* /tmp/ansible-temp/
+          
+          echo "DB 서버에서 파일 다운로드 완료!"
+          ls -la /tmp/ansible-temp/
+          
+      - name: Runner에서 AWX 서버로 파일 업로드
+        run: |
+          echo "Runner에서 AWX 서버로 Ansible 파일 업로드 중..."
+          
+          # AWX 서버에 디렉토리 생성
+          sshpass -p "${{ env.AWX_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+            awx@${{ env.ANSIBLE_MASTER }} "mkdir -p ${{ env.ANSIBLE_PATH }}"
+          
+          # Runner에서 AWX 서버로 파일 업로드
+          sshpass -p "${{ env.AWX_PASSWORD }}" scp -r -o StrictHostKeyChecking=no \
+            /tmp/ansible-temp/* awx@${{ env.ANSIBLE_MASTER }}:${{ env.ANSIBLE_PATH }}/
+          
+          echo "AWX 서버로 파일 업로드 완료!"
+          
+      - name: 디버깅 - 파일 권한 확인
+        run: |
+          sshpass -p "${{ env.AWX_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+            awx@${{ env.ANSIBLE_MASTER }} "stat ${{ env.ANSIBLE_PATH }}/uninstall.yml"
+      
+      - name: AWX 서버에서 Ansible Uninstall Playbook 실행
+        run: |
+          echo "AWX 서버에서 Ansible Uninstall Playbook 실행 중..."
+          
+          # 단순화된 명령어로 실행
+          sshpass -p "${{ env.AWX_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+            awx@${{ env.ANSIBLE_MASTER }} "cd ${{ env.ANSIBLE_PATH }} && \
+            ANSIBLE_HOST_KEY_CHECKING=False \
+            ansible-playbook uninstall.yml \
+            -e ansible_user=awx \
+            -e ansible_password=${{ env.WEB_PASSWORD }}"
+          
+          echo "Ansible Uninstall Playbook 실행 완료!"
+          
+      - name: PostgreSQL에 VM 상태 업데이트
+        run: |
+          echo "VM 상태를 'stopped'로 업데이트 중..."
+          
+          # VM 상태 업데이트 SQL 스크립트 생성
+          cat > /tmp/update_vm_status.sh << 'EOL'
+          #!/bin/bash
+          
+          # 192.168 IP 대역의 VM 상태만 'stopped'로 업데이트
+          psql -d solmakasedb -c "UPDATE VM SET status = 'stopped', updated_at = CURRENT_TIMESTAMP WHERE ip_address LIKE '192.168%';"
+          
+          # 업데이트된 VM 정보 확인
+          echo "업데이트된 VM 정보:"
+          psql -d solmakasedb -t -c "SELECT * FROM VM WHERE ip_address LIKE '192.168%';"
+          EOL
+          
+          # 스크립트에 실행 권한 부여
+          chmod +x /tmp/update_vm_status.sh
+          
+          # DB 서버로 스크립트 전송 및 실행
+          sshpass -p "${{ env.DB_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/update_vm_status.sh postgres@${{ env.DB_SERVER }}:/tmp/
+          sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "/tmp/update_vm_status.sh"
+          
+          echo "VM 상태 업데이트 완료!"
+          
+      - name: 업데이트된 VM 정보 확인
+        run: |
+          echo "PostgreSQL에 저장된 VM 정보 확인 중..."
+          
+          VM_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
+            "psql -d solmakasedb -t -c \"SELECT * FROM VM;\"")
+            
+          echo "VM 정보:"
+          echo "$VM_INFO"
+          
+      - name: PostgreSQL에 VM 정보 삭제
+        run: |
+          echo "PostgreSQL에서 stopped 상태의 VM 정보 삭제 중..."
+          
+          # VM 정보 삭제 SQL 스크립트 생성
+          cat > /tmp/delete_vm_info.sh << 'EOL'
+          #!/bin/bash
+          
+          # 192.168 IP 대역의 stopped 상태 VM 정보만 삭제
+          psql -d solmakasedb -c "DELETE FROM VM WHERE ip_address LIKE '192.168%' AND status = 'stopped';"
+          
+          # 삭제된 VM 정보 확인
+          echo "삭제된 VM 정보:"
+          psql -d solmakasedb -t -c "SELECT * FROM VM WHERE ip_address LIKE '192.168%' AND status = 'stopped';"
+          
+          # 남은 VM 정보 확인
+          echo "남은 VM 정보:"
+          psql -d solmakasedb -t -c "SELECT * FROM VM;"
+          EOL
+          
+          # 스크립트에 실행 권한 부여
+          chmod +x /tmp/delete_vm_info.sh
+          
+          # DB 서버로 스크립트 전송 및 실행
+          sshpass -p "${{ env.DB_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/delete_vm_info.sh postgres@${{ env.DB_SERVER }}:/tmp/
+          sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "/tmp/delete_vm_info.sh"
+          
+          echo "stopped 상태의 VM 정보 삭제 완료!" 
