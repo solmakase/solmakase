@@ -38,14 +38,14 @@ function showStatusMessage(message, type) {
 
 // 버튼 클릭 이벤트 리스너 추가
 const buttonsConfig = [
-    { id: 'Ansible_Button', repo: 'Ansible', workflow: 'ansible-workflow.yml', deploy_method: 'Ansible' },
-    { id: 'AnsibleStop_Button', repo: 'Ansible', workflow: 'stop-service', deploy_method: 'Ansible', service_name: 'ansible' },
-    { id: 'Docker_Button', repo: 'Docker', workflow: 'main.yml', deploy_method: 'Docker' },
-    { id: 'DockerStop_Button', repo: 'Docker', workflow: 'stop-service', deploy_method: 'Docker', service_name: 'docker' },
-    { id: 'K8s_Button', repo: 'Kubespray', workflow: 'lb-web.yml', deploy_method: 'Kubernetes' },
-    { id: 'K8sStop_Button', repo: 'Kubespray', workflow: 'stop-service', deploy_method: 'Kubernetes', service_name: 'kubernetes' },
-    { id: 'Monitoring_Button', repo: 'Kubespray', workflow: 'monitoring.yml', deploy_method: 'Kubernetes' },
-    { id: 'MonitoringStop_Button', repo: 'Kubespray', workflow: 'stop-service', deploy_method: 'Kubernetes', service_name: 'kubernetes' },
+    { id: 'Ansible_Button', repo: 'Ansible', workflow: 'ansible-workflow.yml', deploy_method: 'ansible' },
+    { id: 'AnsibleStop_Button', repo: 'Ansible', workflow: 'stop-service', deploy_method: 'ansible', service_name: 'ansible' },
+    { id: 'Docker_Button', repo: 'Docker', workflow: 'main.yml', deploy_method: 'docker' },
+    { id: 'DockerStop_Button', repo: 'Docker', workflow: 'stop-service', deploy_method: 'docker', service_name: 'docker' },
+    { id: 'K8s_Button', repo: 'Kubespray', workflow: 'lb-web.yml', deploy_method: 'k8s' },
+    { id: 'K8sStop_Button', repo: 'Kubespray', workflow: 'stop-service', deploy_method: 'k8s', service_name: 'kubernetes' },
+    { id: 'Monitoring_Button', repo: 'Kubespray', workflow: 'monitoring.yml', deploy_method: 'k8s' },
+    { id: 'MonitoringStop_Button', repo: 'Kubespray', workflow: 'stop-service', deploy_method: 'k8s', service_name: 'kubernetes' },
 ];
 
 // 버튼 클릭 이벤트 리스너 추가
@@ -87,10 +87,10 @@ function stopServiceAndDeleteData(deployMethod) {
         if (data.message) {
             showStatusMessage(data.message, 'success');
             // 서비스 중지 후 해당 데이터를 다시 로드하여 화면 갱신
-            loadServiceData('ansible-workflow.yml', 'Ansible');
-            loadServiceData('main.yml', 'Docker');
-            loadServiceData('lb-web.yml', 'Kubernetes'); 
-            loadServiceData('monitoring.yml', 'Kubernetes');  
+            loadServiceData('ansible-workflow.yml', 'ansible');
+            loadServiceData('main.yml', 'docker');
+            loadServiceData('lb-web.yml', 'k8s'); 
+            loadServiceData('monitoring.yml', 'k8s');  
         } else {
             showStatusMessage('Failed to stop service and delete data.', 'error');
         }
@@ -106,13 +106,13 @@ function loadServiceData(workflow, deployMethod = null) {
     // 각 서비스에 맞는 컨테이너 선택
     let serviceDataContainerId = '';
     switch (deployMethod) {
-        case 'Ansible':
+        case 'ansible':
             serviceDataContainerId = 'Ansible-service-data-container';
             break;
-        case 'Docker':
+        case 'docker':
             serviceDataContainerId = 'Docker-service-data-container';
             break;
-        case 'Kubernetes':
+        case 'k8s':
             serviceDataContainerId = 'K8s-service-data-container';
             break;
         default:
@@ -144,7 +144,7 @@ function loadServiceData(workflow, deployMethod = null) {
                     // 테이블 헤더 생성
                     const header = table.createTHead();
                     const headerRow = header.insertRow();
-                    const headers = ['Template_id', 'Hostname', 'IP Address', 'Status', 'Deploy_method', 'Created At'];
+                    const headers = ['ID', 'Template_id', 'Hostname', 'IP Address', 'Status', 'Deploy_method', 'Created At'];
                     headers.forEach(headerText => {
                         const th = document.createElement('th');
                         th.style.border = '1px solid #ccc';
@@ -155,9 +155,9 @@ function loadServiceData(workflow, deployMethod = null) {
 
                     // 테이블 본문에 vm_data 삽입
                     const tbody = table.createTBody();
-                    data.forEach(VM => {
+                    data.forEach(vm => {
                         const row = tbody.insertRow();
-                        Object.values(VM).forEach(value => {
+                        Object.values(vm).forEach(value => {
                             const cell = row.insertCell();
                             cell.style.border = '1px solid #ccc';
                             cell.style.padding = '8px';
@@ -182,8 +182,8 @@ function loadServiceData(workflow, deployMethod = null) {
 
 // 페이지 로드 시 자동으로 각 서비스 데이터 로드
 document.addEventListener('DOMContentLoaded', () => {
-    loadServiceData('ansible-workflow.yml', 'Ansible');
-    loadServiceData('main.yml', 'Docker');
-    loadServiceData('lb-web.yml', 'Kubernetes');  
-    loadServiceData('monitoring.yml', 'Kubernetes');  
+    loadServiceData('ansible-workflow.yml', 'ansible');
+    loadServiceData('main.yml', 'docker');
+    loadServiceData('lb-web.yml', 'k8s');  
+    loadServiceData('monitoring.yml', 'k8s');  
 });

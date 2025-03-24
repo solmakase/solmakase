@@ -40,7 +40,7 @@ app.get('/vm-data', async (req, res) => {
 
     try {
         // PostgreSQL에서 VM 데이터를 조회하는 SQL 쿼리
-        let query = 'SELECT * FROM VM';  // 기본 쿼리
+        let query = 'SELECT * FROM vm';  // 기본 쿼리
         let values = [];
 
         if (deployMethod) {
@@ -109,21 +109,46 @@ app.post('/trigger-github-action', async (req, res) => {
 
         // GitHub API 응답이 204(No Content)인 경우
         if (response.status === 204) {
-            return res.json({ message: 'GitHub Action triggered successfully!' });
+            console.log('GitHub Action triggered successfully!');
+
+            // GitHub Action 트리거 후 DB에서 데이터를 가져오기
+            const deployMethod = 'docker';  // 예시: docker를 배포 방법으로 사용
+            const query = 'SELECT * FROM vm WHERE deploy_method = $1';  // 해당 deploy_method로 필터링
+
+            try {
+                const result = await client.query(query, [deployMethod]);  // DB에서 데이터 조회
+                const vmData = result.rows;  // 데이터 받아오기
+
+                // 데이터가 있는 경우 클라이언트에 응답
+                if (vmData.length > 0) {
+                    return res.json({ 
+                        message: 'GitHub Action triggered successfully!',
+                        data: vmData  // DB 데이터 포함
+                    });
+                } else {
+                    return res.json({ 
+                        message: 'GitHub Action triggered successfully, but no data found for the deploy method.', 
+                        data: [] 
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching VM data from database:', error);
+                return res.status(500).json({ message: 'Failed to fetch VM data from the database.' });
+            }
         } else {
             const errorResponse = await response.json();
             console.error('GitHub Action error:', errorResponse);
             return res.status(response.status).json({
-                message: `GitHub Action failed: ${errorResponse.message || 'Unknown error'}`
+                message: `GitHub Action failed: ${errorResponse.message || 'Unknown error'}`,
             });
         }
 
     } catch (error) {
-        // 오류가 발생한 경우 처리
         console.error('Error triggering GitHub Action:', error);
         return res.status(500).json({ message: 'Failed to trigger GitHub Action.' });
     }
 });
+
 
 
 // Stop-Service API - 서비스 중지 및 DB 데이터 삭제
@@ -139,7 +164,7 @@ app.post('/stop-service', async (req, res) => {
         // 1. deploy_method에 해당하는 IP 주소와 호스트명 조회 (vm_data 테이블 사용)
         const serviceQuery = `
             SELECT ip_address, hostname
-            FROM VM
+            FROM vm
             WHERE deploy_method = $1
         `;
         const result = await client.query(serviceQuery, [deployMethod]);
@@ -148,22 +173,32 @@ app.post('/stop-service', async (req, res) => {
             return res.status(404).json({ message: `No services found for deploy method: ${deployMethod}` });
         }
 
-        // 2. 각 IP에 대해 서비스 종료 명령 실행
-        const stopServiceCommand = process.env.stopServiceCommand;  // 환경 변수에서 종료 명령 불러오기
+        // // 2. 각 IP에 대해 서비스 종료 명령 실행
+        // const stopServiceCommand = process.env.stopServiceCommand;  // 환경 변수에서 종료 명령 불러오기
+
+        
         for (const row of result.rows) {
             const remoteHost = row.ip_address;  // 서비스가 배포된 IP 주소
-            const stopCommand = stopServiceCommand.replace("{serviceName}", serviceName);  // deploy_method를 서비스 이름으로 사용
 
+            if (deployMethod === "docker") {
+                // Docker 환경인 경우 Docker 컨테이너 중지 명령
+                stopServiceCommand = `docker stop $(docker pa -q)`;
+            }
+            // } else {
+            //     // 다른 배포 방법에 대한 서비스 종료 명령
+            //     stopServiceCommand = process.env.stopServiceCommand.replace("{serviceName}", serviceName);
+            // }
+            
             console.log(`Stopping service on IP: ${remoteHost}`);
 
             // SSH를 통해 원격 서버에서 명령어 실행
             try {
                 execSync(`ssh ${remoteHost} '${stopCommand}'`, { stdio: 'inherit' });
                 console.log(`Service stopped successfully on IP: ${remoteHost}`);
-            } catch (error) {
+            } catch (error) {   
                 console.error(`Error stopping service on IP: ${remoteHost}`, error.message);
             }
-        }
+        } 
 
     } catch (error) {
         console.error('Error fetching services and IPs from database:', error.message);

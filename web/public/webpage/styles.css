@@ -62,7 +62,7 @@ h2 {
     color: #ffffff;  /* 흰 글자 색상 */
     padding: 20px;  /* 안쪽 여백 */
     width: 90%;
-    max-width: 600px;  /* 화면 크기에 따라 너비가 조정되도록 설정 */
+    max-width: 1000px;  /* 화면 크기에 따라 너비가 조정되도록 설정 */
     height: 300px;  /* 고정 높이 */
     overflow-y: scroll;  /* 내용이 넘칠 경우 스크롤 */
     font-family: "Courier New", Courier, monospace;  /* 프롬프트 창 느낌의 폰트 */
