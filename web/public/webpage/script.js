@@ -32,13 +32,13 @@ function showStatusMessage(message, type) {
 // 버튼 클릭 이벤트 리스너 추가
 const buttonsConfig = [
     { id: 'Web_Button', workflow: 'playbook/playbook.yml', deploy_method: 'Web' },
-    { id: 'WebStop_Button', workflow: 'stop-service', deploy_method: 'Web' },
+    { id: 'WebStop_Button', workflow: 'stop-service', deploy_method: 'Web', service_name: '' },
     { id: 'K8s_Button', workflow: 'playbook/container_playbook.yml', deploy_method: 'Kubernetes' },
-    { id: 'K8sStop_Button', workflow: 'stop-service', deploy_method: 'Kubernetes' }, 
+    { id: 'K8sStop_Button', workflow: 'stop-service', deploy_method: 'Kubernetes', service_name: '' }, 
     { id: 'LB_Button', workflow: 'playbook/k8s_playbook.yml', deploy_method: 'Loadbalance' },
-    { id: 'LBStop_Button', workflow: 'stop-service', deploy_method: 'Loadbalance' },
+    { id: 'LBStop_Button', workflow: 'stop-service', deploy_method: 'Loadbalance', service_name: '' },
     { id: 'DB_Button', workflow: 'test.yml', deploy_method: 'Database' },
-    { id: 'DBStop_Button', workflow: 'stop-service', deploy_method: 'Database' }
+    { id: 'DBStop_Button', workflow: 'stop-service', deploy_method: 'Database', service_name: '' }
 ];
 
 // 버튼 클릭 이벤트 리스너 추가
