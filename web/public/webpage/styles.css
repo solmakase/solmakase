@@ -14,9 +14,14 @@
 body {
     display: flex;
     justify-content: center;
+<<<<<<< HEAD
     align-items: flex-start;
     /* height: 120vh; */
     margin-left: 20px;
+=======
+    align-items: center;
+    height: 120vh;
+>>>>>>> ecd8f39 (initial commit)
     margin-top: 100px;
     flex-direction: column;
     text-align: center;
@@ -30,7 +35,11 @@ body {
 h1 {
     font-size: 36px;       /* 제목의 크기 */
     color: #333;           /* 제목 글자 색상 */
+<<<<<<< HEAD
     margin-top: 10px;             /* 제목과 다른 요소들 간의 여백 제거 */
+=======
+    margin: 0;             /* 제목과 다른 요소들 간의 여백 제거 */
+>>>>>>> ecd8f39 (initial commit)
     position: absolute;    /* 절대 위치 지정 */
     top: 20px;             /* 화면 상단에서 20px 떨어지게 설정 */
     left: 20px;            /* 화면 왼쪽에서 20px 떨어지게 설정 */
@@ -52,18 +61,30 @@ h2 {
 }
 
 /* VM 데이터 표시 영역 스타일 */
+<<<<<<< HEAD
 #Web-service-data-container, #K8s-service-data-container, #LB-service-data-container, #DB-service-data-container {
+=======
+#vm-data-container {
+>>>>>>> ecd8f39 (initial commit)
     background-color: #000000;  /* 검은 배경 */
     color: #ffffff;  /* 흰 글자 색상 */
     padding: 20px;  /* 안쪽 여백 */
     
     width: 600px;  /* 너비를 80%로 설정 */
+<<<<<<< HEAD
     height: 300px;  /* 고정 높이 */
+=======
+    height: 500px;  /* 고정 높이 */
+>>>>>>> ecd8f39 (initial commit)
     overflow-y: scroll;  /* 내용이 넘칠 경우 스크롤 */
     font-family: "Courier New", Courier, monospace;  /* 프롬프트 창 느낌의 폰트 */
     white-space: pre-wrap;  /* 줄 바꿈 및 공백 처리 */
     border: 1px solid #333;  /* 경계선 추가 */
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);  /* 그림자 효과 */
+<<<<<<< HEAD
     margin-top: 20px;
 }
 
+=======
+}
+>>>>>>> ecd8f39 (initial commit)

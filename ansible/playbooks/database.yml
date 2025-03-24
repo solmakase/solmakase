@@ -1,0 +1,13 @@
+---
+- name: PostgreSQL 데이터베이스 구성
+  hosts: database
+  become: true
+  vars:
+    postgres_version: 14
+    postgres_db_name: myapp
+    postgres_user: myapp_user
+    postgres_password: "soldesk1."  # 실제 환경에서는 vault 사용 권장
+  roles:
+    - common
+    - postgres
+

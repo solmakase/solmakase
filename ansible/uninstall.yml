@@ -1,0 +1,8 @@
+---
+- name: uninstall
+  become: true
+  tasks:
+    - name: dddd
+      ansible.builtin.yum:
+        - name: apache
+      

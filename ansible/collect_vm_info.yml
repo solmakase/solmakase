@@ -1,0 +1,26 @@
+---
+- name: 호스트 상태 및 정보 수집
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: 호스트 상태 확인
+      shell: "echo 'running'"
+      register: host_status
+      ignore_errors: yes
+      
+    - name: 호스트 정보 저장
+      set_fact:
+        vm_info: 
+          hostname: "{{ inventory_hostname }}"
+          ip_address: "{{ ansible_host }}"
+          status: "{{ host_status.stdout | default('running') }}"
+      
+    - name: 호스트 정보 출력
+      debug:
+        var: vm_info
+        
+    - name: VM 정보 로컬 파일에 저장
+      local_action:
+        module: copy
+        content: "{{ vm_info | to_json }}"
+        dest: "/tmp/vm_info_{{ inventory_hostname }}.json"
