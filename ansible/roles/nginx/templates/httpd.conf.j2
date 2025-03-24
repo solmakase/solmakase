@@ -1,0 +1,33 @@
+# Apache 프록시 설정
+<VirtualHost *:80>
+    ServerName {{ ansible_hostname }}
+    DocumentRoot /var/www/html
+
+    # 기본 디렉토리 설정
+    <Directory "/var/www/html">
+        Options Indexes FollowSymLinks
+        AllowOverride None
+        Require all granted
+    </Directory>
+
+    # 프록시 설정
+    <IfModule mod_proxy.c>
+        ProxyPreserveHost On
+        ProxyRequests Off
+        
+        # Node.js 애플리케이션으로 프록시
+        ProxyPass / http://localhost:{{ app_port | default(8080) }}/
+        ProxyPassReverse / http://localhost:{{ app_port | default(8080) }}/
+    </IfModule>
+
+    # WebSocket 지원 추가
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        RewriteCond %{HTTP:Upgrade} =websocket [NC]
+        RewriteRule /(.*) ws://localhost:{{ app_port | default(8080) }}/$1 [P,L]
+    </IfModule>
+
+    ErrorLog /var/log/httpd/{{ app_name | default('app') }}_error.log
+    CustomLog /var/log/httpd/{{ app_name | default('app') }}_access.log combined
+</VirtualHost>
+

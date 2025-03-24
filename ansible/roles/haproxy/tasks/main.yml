@@ -1,0 +1,26 @@
+---
+    - name: HAProxy 패키지 설치
+      dnf:
+        name: haproxy
+        state: present
+
+    - name: HAProxy 구성 파일 설정
+      template:
+        src: haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart haproxy
+
+    - name: SELinux 설정 - HAProxy 연결 허용
+      seboolean:
+        name: haproxy_connect_any
+        state: yes
+        persistent: yes
+
+    - name: HAProxy 서비스 활성화 및 시작
+      systemd:
+        name: haproxy
+        state: started
+        enabled: yes

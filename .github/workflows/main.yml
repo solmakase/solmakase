@@ -1,0 +1,141 @@
+name: 웹 애플리케이션 자동 배포
+
+on:
+  # 코드 변경 시 자동 실행
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'web/**'  # web 폴더의 변경사항만 감지
+  
+  # 수동으로 실행 가능
+  workflow_dispatch:
+
+jobs:
+  deploy-web-app:
+    name: 웹 애플리케이션 배포
+    runs-on: self-hosted  # Self-Hosted Runner 사용
+    
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v3
+
+      - name: 환경 변수 설정
+        run: |
+          echo "WEB_PORT=3000" >> $GITHUB_ENV
+          echo "WEB_SERVER=192.168.40.32" >> $GITHUB_ENV
+          
+      - name: Node.js 설정
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: 의존성 설치
+        run: |
+          cd web
+          npm install
+          
+      - name: SELinux 설정 (Permissive 모드)
+        run: |
+          # SELinux 상태 확인
+          echo "현재 SELinux 상태 확인:"
+          getenforce || echo "SELinux가 설치되지 않았습니다."
+          
+          # Permissive 모드로 설정 (일시적)
+          echo "SELinux를 Permissive 모드로 설정합니다."
+          sudo setenforce 0 || echo "SELinux 모드 변경에 실패했습니다."
+          
+          # 웹 서비스 관련 SELinux 부울 설정
+          echo "웹 서비스 네트워크 연결 허용:"
+          sudo setsebool -P httpd_can_network_connect=1 || echo "httpd_can_network_connect 설정 실패"
+          
+      - name: 방화벽 설정 확인 (CentOS 9)
+        run: |
+          # 방화벽 상태 확인
+          sudo firewall-cmd --state || (echo "방화벽이 실행 중이지 않습니다." && exit 0)
+          
+          # 포트가 이미 열려있는지 확인
+          if sudo firewall-cmd --list-ports | grep -q "${{ env.WEB_PORT }}/tcp"; then
+            echo "포트 ${{ env.WEB_PORT }}/tcp는 이미 방화벽에 열려 있습니다."
+          else
+            # 포트 열기 (영구적으로)
+            sudo firewall-cmd --permanent --add-port=${{ env.WEB_PORT }}/tcp
+            sudo firewall-cmd --reload
+            echo "방화벽에 ${{ env.WEB_PORT }}/tcp 포트를 열었습니다."
+          fi
+          
+          # 설정 확인
+          echo "방화벽 포트 설정:"
+          sudo firewall-cmd --list-ports
+          
+      - name: systemd 서비스 설정
+        run: |
+          cd web
+          echo "현재 디렉토리: $(pwd)"
+          
+          # 애플리케이션 경로 저장
+          APP_PATH=$(pwd)
+          NODE_PATH=$(which node)
+          
+          # systemd 서비스 파일 생성
+          echo "systemd 서비스 파일 생성 중..."
+          sudo tee /etc/systemd/system/webapp.service > /dev/null << EOF
+          [Unit]
+          Description=Node.js Web Application
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=$USER
+          WorkingDirectory=${APP_PATH}
+          ExecStart=${NODE_PATH} ${APP_PATH}/app.js
+          Restart=always
+          RestartSec=10
+          StandardOutput=syslog
+          StandardError=syslog
+          SyslogIdentifier=webapp
+          Environment=NODE_ENV=production
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          # systemd 서비스 활성화 및 시작
+          echo "systemd 서비스 활성화 및 시작 중..."
+          sudo systemctl daemon-reload
+          sudo systemctl enable webapp
+          sudo systemctl restart webapp
+          
+          # 서비스 상태 확인
+          echo "서비스 상태 확인 중..."
+          sudo systemctl status webapp
+          
+          # 애플리케이션 실행 확인
+          sleep 5
+          if curl -s http://localhost:${{ env.WEB_PORT }} > /dev/null; then
+            echo "✅ 애플리케이션이 성공적으로 시작되었습니다!"
+            echo "🌐 접속 URL: http://${{ env.WEB_SERVER }}:${{ env.WEB_PORT }}"
+          else
+            echo "❌ 애플리케이션 시작에 실패했습니다."
+            sudo journalctl -u webapp -n 20
+            exit 1
+          fi
+          
+      - name: 포트 및 프로세스 상태 확인
+        run: |
+          echo "포트 ${{ env.WEB_PORT }} 상태:"
+          ss -tulpn | grep ":${{ env.WEB_PORT }}" || netstat -tulpn | grep ":${{ env.WEB_PORT }}" || echo "포트가 열려있지 않습니다."
+          
+          echo "프로세스 상태:"
+          ps aux | grep "[n]ode.*app.js"
+          
+      - name: 배포 완료 알림
+        run: |
+          echo "================================================="
+          echo "✅ 배포가 완료되었습니다!"
+          echo "   다음 URL로 접속하여 확인하세요:"
+          echo "   http://${{ env.WEB_SERVER }}:${{ env.WEB_PORT }}"
+          echo "================================================="
+          
+          # 애플리케이션 접근 테스트
+          echo "애플리케이션 접근 테스트 중..."
+          curl -v http://localhost:${{ env.WEB_PORT }} || echo "애플리케이션 접근 실패"

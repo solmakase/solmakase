@@ -1,0 +1,21 @@
+---
+- name: 기본 배포 스크립트 실행
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: 기본 배포 시작
+      debug:
+        msg: "동적 배포 스크립트가 없어 기본 배포를 시작합니다."
+
+# 여기서부터는 실제 서버 구성을 적용합니다
+
+- name: 웹 서버(Nginx) 구성
+  import_playbook: "{{ playbook_dir }}/playbooks/webservers.yml"
+
+- name: 로드밸런서(HAProxy) 구성
+  import_playbook: "{{ playbook_dir }}/playbooks/haproxy.yml"
+
+
+- name: 데이터베이스(PostgreSQL) 구성
+  import_playbook: "{{ playbook_dir }}/playbooks/database.yml"
+
