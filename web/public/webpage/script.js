@@ -44,6 +44,8 @@ const buttonsConfig = [
     { id: 'DockerStop_Button', repo: 'Docker', workflow: 'stop-service', deploy_method: 'Docker', service_name: 'docker' },
     { id: 'K8s_Button', repo: 'Kubespray', workflow: 'lb-web.yml', deploy_method: 'Kubernetes' },
     { id: 'K8sStop_Button', repo: 'Kubespray', workflow: 'stop-service', deploy_method: 'Kubernetes', service_name: 'kubernetes' },
+    { id: 'Monitoring_Button', repo: 'Kubespray', workflow: 'monitoring.yml', deploy_method: 'Kubernetes' },
+    { id: 'MonitoringStop_Button', repo: 'Kubespray', workflow: 'stop-service', deploy_method: 'Kubernetes', service_name: 'kubernetes' },
 ];
 
 // 버튼 클릭 이벤트 리스너 추가
@@ -87,7 +89,8 @@ function stopServiceAndDeleteData(deployMethod) {
             // 서비스 중지 후 해당 데이터를 다시 로드하여 화면 갱신
             loadServiceData('ansible-workflow.yml', 'Ansible');
             loadServiceData('main.yml', 'Docker');
-            loadServiceData('lb-web.yml', 'Kubernetes');  // Kubernetes 데이터도 다시 로드
+            loadServiceData('lb-web.yml', 'Kubernetes'); 
+            loadServiceData('monitoring.yml', 'Kubernetes');  
         } else {
             showStatusMessage('Failed to stop service and delete data.', 'error');
         }
@@ -181,5 +184,6 @@ function loadServiceData(workflow, deployMethod = null) {
 document.addEventListener('DOMContentLoaded', () => {
     loadServiceData('ansible-workflow.yml', 'Ansible');
     loadServiceData('main.yml', 'Docker');
-    loadServiceData('lb-web.yml', 'Kubernetes');  // Kubernetes 데이터 로드
+    loadServiceData('lb-web.yml', 'Kubernetes');  
+    loadServiceData('monitoring.yml', 'Kubernetes');  
 });
