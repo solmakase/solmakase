@@ -24,7 +24,7 @@ jobs:
           echo "AWX_PASSWORD=redhat" >> $GITHUB_ENV
           echo "DB_SERVER=192.168.60.64" >> $GITHUB_ENV
           echo "ANSIBLE_MASTER=192.168.50.11" >> $GITHUB_ENV
-          echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/lb-web" >> $GITHUB_ENV
+          echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/lb_web" >> $GITHUB_ENV
           
       - name: sshpass 설치 확인
         run: |
@@ -41,7 +41,7 @@ jobs:
           echo "PostgreSQL에서 k8s 배포 정보 가져오는 중..."
           
           SERVICE_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
-            "psql -d solmakasedb -t -c \"SELECT name, deploy_script FROM servicetemplate WHERE name = 'lb-web';\"")
+            "psql -d solmakasedb -t -c \"SELECT name, deploy_script FROM servicetemplate WHERE name = 'lb_web';\"")
           echo "k8s 서비스 정보:"
           echo "$SERVICE_INFO"
           
