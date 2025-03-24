@@ -41,7 +41,7 @@ jobs:
           echo "PostgreSQL에서 k8s 배포 정보 가져오는 중..."
           
           SERVICE_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
-            "psql -d solmakasedb -t -c \"SELECT name, deploy_script FROM servicetemplate WHERE name = 'lb-web';\"")
+            "psql -d solmakasedb -t -c \"SELECT name, deploy_script FROM servicetemplate WHERE name = 'lb_web';\"")
           echo "k8s 서비스 정보:"
           echo "$SERVICE_INFO"
           

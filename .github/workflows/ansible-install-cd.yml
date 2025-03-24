@@ -1,0 +1,197 @@
+name: Deploy with Ansible on AWX Server (CentOS 9)
+
+on:
+  workflow_dispatch:  # 수동 실행 버튼 활성화
+
+jobs:
+  deploy:
+    runs-on: self-hosted  # GitHub에 등록한 로컬 Runner 사용
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: 환경 변수 설정
+        run: |
+          echo "DB_PASSWORD=soldesk1." >> $GITHUB_ENV
+          echo "AWX_PASSWORD=redhat" >> $GITHUB_ENV
+          echo "DB_SERVER=192.168.60.64" >> $GITHUB_ENV
+          echo "ANSIBLE_MASTER=192.168.50.11" >> $GITHUB_ENV
+          echo "ANSIBLE_PATH=/home/awx/ansible" >> $GITHUB_ENV
+          echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/ansible" >> $GITHUB_ENV
+          echo "WEB_PASSWORD=redhat" >> $GITHUB_ENV
+          
+      - name: sshpass 설치 확인 (CentOS/RHEL)
+        run: |
+          if ! command -v sshpass &> /dev/null; then
+            echo "sshpass 설치 중..."
+            # CentOS/RHEL 9에서는 dnf 패키지 관리자 사용
+            sudo dnf install -y epel-release
+            sudo dnf install -y sshpass
+          else
+            echo "sshpass가 이미 설치되어 있습니다."
+          fi
+          
+      - name: PostgreSQL 서버에서 Ansible 정보 조회
+        run: |
+          echo "PostgreSQL에서 Ansible 배포 정보 가져오는 중..."
+          
+          SERVICE_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
+            "psql -d solmakasedb -t -c \"SELECT name, deploy_script FROM servicetemplate WHERE name = 'ansible';\"")
+          echo "Ansible 서비스 정보:"
+          echo "$SERVICE_INFO"
+          
+      - name: Runner에 임시 디렉토리 생성
+        run: |
+          echo "Runner에 임시 디렉토리 생성 중..."
+          mkdir -p /tmp/ansible-temp
+          
+      - name: DB 서버에서 Runner로 파일 다운로드
+        run: |
+          echo "DB 서버에서 Ansible 파일을 Runner로 다운로드 중..."
+          sshpass -p "${{ env.DB_PASSWORD }}" scp -r -o StrictHostKeyChecking=no \
+            postgres@${{ env.DB_SERVER }}:${{ env.DB_ANSIBLE_PATH }}/* /tmp/ansible-temp/
+          
+          echo "DB 서버에서 파일 다운로드 완료!"
+          ls -la /tmp/ansible-temp/
+          
+      - name: Runner에서 AWX 서버로 파일 업로드
+        run: |
+          echo "Runner에서 AWX 서버로 Ansible 파일 업로드 중..."
+          
+          # AWX 서버에 디렉토리 생성
+          sshpass -p "${{ env.AWX_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+            awx@${{ env.ANSIBLE_MASTER }} "mkdir -p ${{ env.ANSIBLE_PATH }}"
+          
+          # Runner에서 AWX 서버로 파일 업로드
+          sshpass -p "${{ env.AWX_PASSWORD }}" scp -r -o StrictHostKeyChecking=no \
+            /tmp/ansible-temp/* awx@${{ env.ANSIBLE_MASTER }}:${{ env.ANSIBLE_PATH }}/
+          
+          echo "AWX 서버로 파일 업로드 완료!"
+          
+      - name: 디버깅 - 파일 권한 확인
+        run: |
+          sshpass -p "${{ env.AWX_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+            awx@${{ env.ANSIBLE_MASTER }} "stat ${{ env.ANSIBLE_PATH }}/deployment.yml"
+      
+      - name: AWX 서버에서 Ansible Playbook 실행
+        run: |
+          echo "AWX 서버에서 Ansible Playbook 실행 중..."
+          
+          # 단순화된 명령어로 실행
+          sshpass -p "${{ env.AWX_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+            awx@${{ env.ANSIBLE_MASTER }} "cd ${{ env.ANSIBLE_PATH }} && \
+            ANSIBLE_HOST_KEY_CHECKING=False \
+            ansible-playbook deployment.yml \
+            -e ansible_user=awx \
+            -e ansible_password=${{ env.WEB_PASSWORD }}"
+          
+          echo "Ansible Playbook 실행 완료!"
+          
+      - name: AWX 서버에서 VM 리소스 정보 수집
+        run: |
+          echo "Worker 노드의 VM 리소스 정보 수집 중..."
+          
+          # VM 정보 수집 스크립트 생성
+          cat > /tmp/collect_vm_info.yml << 'EOL'
+          ---
+          - name: 호스트 상태 및 정보 수집
+            hosts: all
+            gather_facts: yes
+            tasks:
+              - name: 호스트 상태 확인
+                shell: "echo 'running'"
+                register: host_status
+                ignore_errors: yes
+                
+              - name: 호스트 정보 저장
+                set_fact:
+                  vm_info: 
+                    hostname: "{{ inventory_hostname }}"
+                    ip_address: "{{ ansible_host }}"
+                    status: "{{ host_status.stdout | default('running') }}"
+                
+              - name: 호스트 정보 출력
+                debug:
+                  var: vm_info
+                  
+              - name: VM 정보 로컬 파일에 저장
+                local_action:
+                  module: copy
+                  content: "{{ vm_info | to_json }}"
+                  dest: "/tmp/vm_info_{{ inventory_hostname }}.json"
+          EOL
+          
+          # VM 정보 수집 스크립트를 AWX 서버로 전송
+          sshpass -p "${{ env.AWX_PASSWORD }}" scp -o StrictHostKeyChecking=no \
+            /tmp/collect_vm_info.yml awx@${{ env.ANSIBLE_MASTER }}:${{ env.ANSIBLE_PATH }}/collect_vm_info.yml
+          
+          # VM 정보 수집 실행 - 기존 인벤토리 파일 사용
+          sshpass -p "${{ env.AWX_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+            awx@${{ env.ANSIBLE_MASTER }} "cd ${{ env.ANSIBLE_PATH }} && \
+            mkdir -p /tmp/vm_info && \
+            ANSIBLE_HOST_KEY_CHECKING=False \
+            ansible-playbook collect_vm_info.yml -i inventory/hosts \
+            -e ansible_user=awx \
+            -e ansible_password=${{ env.WEB_PASSWORD }}"
+          
+          # VM 정보 파일 가져오기
+          mkdir -p /tmp/vm_info
+          sshpass -p "${{ env.AWX_PASSWORD }}" scp -o StrictHostKeyChecking=no \
+            awx@${{ env.ANSIBLE_MASTER }}:/tmp/vm_info_*.json /tmp/vm_info/
+          
+      - name: PostgreSQL에 VM 정보 저장
+        run: |
+          echo "VM 정보를 PostgreSQL 데이터베이스에 저장 중..."
+          
+          # PostgreSQL에 연결하기 위한 스크립트 생성
+          cat > /tmp/insert_vm_info.sh << 'EOL'
+          #!/bin/bash
+          
+          for file in /tmp/vm_info/vm_info_*.json; do
+            hostname=$(jq -r '.hostname' $file)
+            ip_address=$(jq -r '.ip_address' $file)
+            status=$(jq -r '.status' $file)
+            
+            # SQL 쿼리 생성 - 존재하면 업데이트, 없으면 삽입(UPSERT)
+            SQL="INSERT INTO VM (hostname, ip_address, status) 
+                 VALUES ('$hostname', '$ip_address', '$status')
+                 ON CONFLICT (hostname) 
+                 DO UPDATE SET 
+                   ip_address = EXCLUDED.ip_address, 
+                   status = EXCLUDED.status,
+                   created_at = CURRENT_TIMESTAMP;"
+            
+            echo "Executing SQL: $SQL"
+            psql -d solmakasedb -c "$SQL"
+          done
+          EOL
+          
+          # jq 설치 확인 및 설치
+          if ! command -v jq &> /dev/null; then
+            echo "jq 설치 중..."
+            sudo dnf install -y jq
+          fi
+          
+          # 스크립트에 실행 권한 부여
+          chmod +x /tmp/insert_vm_info.sh
+          
+          # DB 서버로 스크립트와 VM 정보 파일 전송
+          sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "mkdir -p /tmp/vm_info"
+          sshpass -p "${{ env.DB_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/vm_info/*.json postgres@${{ env.DB_SERVER }}:/tmp/vm_info/
+          sshpass -p "${{ env.DB_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/insert_vm_info.sh postgres@${{ env.DB_SERVER }}:/tmp/
+          
+          # DB 서버에서 스크립트 실행
+          sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "/tmp/insert_vm_info.sh"
+          
+          echo "VM 정보 저장 완료!"
+          
+      - name: 저장된 VM 정보 확인
+        run: |
+          echo "PostgreSQL에 저장된 VM 정보 확인 중..."
+          
+          VM_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
+            "psql -d solmakasedb -t -c \"SELECT * FROM VM;\"")
+            
+          echo "VM 정보:"
+          echo "$VM_INFO"
