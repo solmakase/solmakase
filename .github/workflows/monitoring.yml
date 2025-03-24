@@ -1,4 +1,4 @@
-name: 모니터링 웹훅
+name:  monitoring코드 동기화
 
 on:
   # 코드 변경 시 자동 실행
@@ -42,7 +42,7 @@ jobs:
           
           SERVICE_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
             "psql -d solmakasedb -t -c \"SELECT name, deploy_script FROM servicetemplate WHERE name = 'monitoring';\"")
-          echo "monitoring 서비스 정보:"
+          echo "k8s 서비스 정보:"
           echo "$SERVICE_INFO"
           
       - name: 디렉토리 확인
@@ -52,32 +52,27 @@ jobs:
           echo "monitoring 디렉토리 확인:"
           ls -la ./monitoring || echo "monitoring 디렉토리가 없습니다"
           
-      - name: monitoring 코드 동기화
+      - name: k8s 코드 동기화
         run: |
           echo "monitoring 코드를 NAS 경로에 동기화 중..."
           
-          # 임시 디렉토리 이름을 사용자 홈 디렉토리 아래에 생성
-          TEMP_DIR="/home/postgres/monitoring_temp"
-          
           # 로컬 monitoring 폴더를 DB 서버의 NAS 경로에 동기화 (sudo 권한 사용)
           sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
-            "echo '${{ env.DB_PASSWORD }}' | sudo -S mkdir -p ${{ env.DB_ANSIBLE_PATH }} && \
-             rm -rf ${TEMP_DIR} && mkdir -p ${TEMP_DIR} && chmod 755 ${TEMP_DIR}"
+            "echo '${{ env.DB_PASSWORD }}' | sudo -S mkdir -p ${{ env.DB_ANSIBLE_PATH }}"
           
-          # rsync로 파일 전송
-          sshpass -p "${{ env.DB_PASSWORD }}" rsync -avz --delete ./monitoring/ postgres@${{ env.DB_SERVER }}:${TEMP_DIR}/
+          # rsync로 파일 전송 후 원격에서 sudo로 권한 변경
+          sshpass -p "${{ env.DB_PASSWORD }}" rsync -avz --delete ./monitoring/ postgres@${{ env.DB_SERVER }}:/tmp/monitoring_temp/
           
-          # 원격에서 sudo로 최종 위치에 파일 복사 및 권한 변경
           sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
-            "echo '${{ env.DB_PASSWORD }}' | sudo -S rsync -avz --delete ${TEMP_DIR}/ ${{ env.DB_ANSIBLE_PATH }}/ && \
+            "echo '${{ env.DB_PASSWORD }}' | sudo -S rsync -avz --delete /tmp/monitoring_temp/ ${{ env.DB_ANSIBLE_PATH }}/ && \
              echo '${{ env.DB_PASSWORD }}' | sudo -S chown -R postgres:postgres ${{ env.DB_ANSIBLE_PATH }} && \
-             rm -rf ${TEMP_DIR}"
+             rm -rf /tmp/monitoring_temp"
           
-          echo "monitoring 코드 동기화 완료"
+          echo "k8s 코드 동기화 완료"
           
       - name: 배포 완료 알림
         run: |
           echo "================================================="
-          echo "✅ monitoring 코드 배포가 완료되었습니다!"
+          echo "✅ k8s 코드 배포가 완료되었습니다!"
           echo "   배포 경로: ${{ env.DB_SERVER }}:${{ env.DB_ANSIBLE_PATH }}"
           echo "================================================="
