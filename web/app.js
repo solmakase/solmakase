@@ -131,7 +131,7 @@ app.post('/trigger-github-action', async (req, res) => {
 // Stop-Service API - 서비스 중지 및 DB 데이터 삭제
 app.post('/stop-service', async (req, res) => {
     const deployMethod = req.body.deploy_method;  // 클라이언트에서 전달된 deploy_method 값
-    const serviceName = req.body.service_name;
+    const serviceName = req.body.service_name;  // 클라이언트에서 전달된 service_name 값
 
     if (!deployMethod) {
         return res.status(400).json({ message: 'Deploy method is required to stop the service.' });

@@ -52,7 +52,7 @@ h2 {
 }
 
 /* VM 데이터 표시 영역 스타일 */
-#Web-service-data-container, #K8s-service-data-container, #LB-service-data-container, #DB-service-data-container {
+#Ansible-service-data-container, #K8s-service-data-container, #Docker-service-data-container {
     background-color: #000000;  /* 검은 배경 */
     color: #ffffff;  /* 흰 글자 색상 */
     padding: 20px;  /* 안쪽 여백 */

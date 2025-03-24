@@ -31,14 +31,12 @@ function showStatusMessage(message, type) {
 
 // 버튼 클릭 이벤트 리스너 추가
 const buttonsConfig = [
-    { id: 'Web_Button', workflow: 'playbook/playbook.yml', deploy_method: 'Web' },
-    { id: 'WebStop_Button', workflow: 'stop-service', deploy_method: 'Web', service_name: '' },
+    { id: 'Ansible_Button', workflow: 'playbook/playbook.yml', deploy_method: 'Ansible' },
+    { id: 'AnsibleStop_Button', workflow: 'stop-service', deploy_method: 'Ansible', service_name: 'ansible' },
+    { id: 'Docker_Button', workflow: 'playbook/container_playbook.yml', deploy_method: 'Docker' },
+    { id: 'DockerStop_Button', workflow: 'stop-service', deploy_method: 'Docker', service_name: 'docker' },
     { id: 'K8s_Button', workflow: 'playbook/container_playbook.yml', deploy_method: 'Kubernetes' },
-    { id: 'K8sStop_Button', workflow: 'stop-service', deploy_method: 'Kubernetes', service_name: '' }, 
-    { id: 'LB_Button', workflow: 'playbook/k8s_playbook.yml', deploy_method: 'Loadbalance' },
-    { id: 'LBStop_Button', workflow: 'stop-service', deploy_method: 'Loadbalance', service_name: '' },
-    { id: 'DB_Button', workflow: 'test.yml', deploy_method: 'Database' },
-    { id: 'DBStop_Button', workflow: 'stop-service', deploy_method: 'Database', service_name: '' }
+    { id: 'K8sStop_Button', workflow: 'stop-service', deploy_method: 'Kubernetes', service_name: 'kubernetes' },
 ];
 
 // 버튼 클릭 이벤트 리스너 추가
@@ -80,10 +78,9 @@ function stopServiceAndDeleteData(deployMethod) {
         if (data.message) {
             showStatusMessage(data.message, 'success');
             // 서비스 중지 후 해당 데이터를 다시 로드하여 화면 갱신
-            loadServiceData('playbook/playbook.yml', 'Web');
-            loadServiceData('playbook/container_playbook.yml', 'Kubernetes');
-            loadServiceData('playbook/k8s_playbook.yml', 'Loadbalance');
-            loadServiceData('test.yml', 'Database');
+            loadServiceData('playbook/playbook.yml', 'Ansible');
+            loadServiceData('playbook/container_playbook.yml', 'Docker');
+            loadServiceData('test.yml', 'Kubernetes');  // Kubernetes 데이터도 다시 로드
         } else {
             showStatusMessage('Failed to stop service and delete data.', 'error');
         }
@@ -99,17 +96,14 @@ function loadServiceData(workflow, deployMethod = null) {
     // 각 서비스에 맞는 컨테이너 선택
     let serviceDataContainerId = '';
     switch (deployMethod) {
-        case 'Web':
-            serviceDataContainerId = 'Web-service-data-container';
+        case 'Ansible':
+            serviceDataContainerId = 'Ansible-service-data-container';
+            break;
+        case 'Docker':
+            serviceDataContainerId = 'Docker-service-data-container';
             break;
         case 'Kubernetes':
             serviceDataContainerId = 'K8s-service-data-container';
-            break;
-        case 'Loadbalance':
-            serviceDataContainerId = 'LB-service-data-container';
-            break;
-        case 'Database':
-            serviceDataContainerId = 'DB-service-data-container';
             break;
         default:
             console.warn('Unknown deploy method:', deployMethod);
@@ -178,9 +172,7 @@ function loadServiceData(workflow, deployMethod = null) {
 
 // 페이지 로드 시 자동으로 각 서비스 데이터 로드
 document.addEventListener('DOMContentLoaded', () => {
-    // 각 서비스에 대해 데이터를 불러옵니다.
-    loadServiceData('playbook/playbook.yml', 'Web');
-    loadServiceData('playbook/container_playbook.yml', 'Kubernetes');
-    loadServiceData('playbook/k8s_playbook.yml', 'Loadbalance');
-    loadServiceData('test.yml', 'Database');
+    loadServiceData('playbook/playbook.yml', 'Ansible');
+    loadServiceData('playbook/container_playbook.yml', 'Docker');
+    loadServiceData('test.yml', 'Kubernetes');  // Kubernetes 데이터 로드
 });
