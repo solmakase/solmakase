@@ -110,14 +110,13 @@ app.post('/trigger-github-action', async (req, res) => {
         // GitHub API 응답이 204(No Content)인 경우
         if (response.status === 204) {
             return res.json({ message: 'GitHub Action triggered successfully!' });
+        } else {
+            const errorResponse = await response.json();
+            console.error('GitHub Action error:', errorResponse);
+            return res.status(response.status).json({
+                message: `GitHub Action failed: ${errorResponse.message || 'Unknown error'}`
+            });
         }
-
-        // 응답이 실패한 경우, 응답 내용을 처리합니다.
-        const errorResponse = await response.json();
-        console.error('GitHub Action error:', errorResponse);
-        return res.status(response.status).json({
-            message: `GitHub Action failed: ${errorResponse.message || 'Unknown error'}`
-        });
 
     } catch (error) {
         // 오류가 발생한 경우 처리
