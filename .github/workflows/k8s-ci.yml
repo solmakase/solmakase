@@ -5,7 +5,7 @@ on:
   push:
     branches: [ main, master ]
     paths:
-      - 'lb_web/**'  # lb-web 폴더의 변경사항 감지
+      - 'lb_web/**'  # lb_web 폴더의 변경사항 감지
   # 수동으로 실행 가능
   workflow_dispatch:
 
@@ -45,16 +45,23 @@ jobs:
           echo "k8s 서비스 정보:"
           echo "$SERVICE_INFO"
           
+      - name: 디렉토리 확인
+        run: |
+          echo "현재 디렉토리 구조 확인:"
+          ls -la
+          echo "lb_web 디렉토리 확인:"
+          ls -la ./lb_web || echo "lb_web 디렉토리가 없습니다"
+          
       - name: k8s 코드 동기화
         run: |
           echo "k8s 코드를 NAS 경로에 동기화 중..."
           
-          # 로컬 lb-web 폴더를 DB 서버의 NAS 경로에 동기화 (sudo 권한 사용)
+          # 로컬 lb_web 폴더를 DB 서버의 NAS 경로에 동기화 (sudo 권한 사용)
           sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
             "echo '${{ env.DB_PASSWORD }}' | sudo -S mkdir -p ${{ env.DB_ANSIBLE_PATH }}"
           
           # rsync로 파일 전송 후 원격에서 sudo로 권한 변경
-          sshpass -p "${{ env.DB_PASSWORD }}" rsync -avz --delete ./lb-web/ postgres@${{ env.DB_SERVER }}:/tmp/lb_web_temp/
+          sshpass -p "${{ env.DB_PASSWORD }}" rsync -avz --delete ./lb_web/ postgres@${{ env.DB_SERVER }}:/tmp/lb_web_temp/
           
           sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
             "echo '${{ env.DB_PASSWORD }}' | sudo -S rsync -avz --delete /tmp/lb_web_temp/ ${{ env.DB_ANSIBLE_PATH }}/ && \
@@ -66,6 +73,6 @@ jobs:
       - name: 배포 완료 알림
         run: |
           echo "================================================="
-          echo "✅ Ansible 코드 배포가 완료되었습니다!"
+          echo "✅ k8s 코드 배포가 완료되었습니다!"
           echo "   배포 경로: ${{ env.DB_SERVER }}:${{ env.DB_ANSIBLE_PATH }}"
           echo "================================================="
