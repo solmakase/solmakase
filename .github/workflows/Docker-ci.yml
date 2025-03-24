@@ -1,4 +1,4 @@
-name: k8s 코드 동기화
+name: Docker 코드 동기화
 
 on:
   # 코드 변경 시 자동 실행
