@@ -6,7 +6,7 @@ web-server1 ansible_host=192.168.50.13 ansible_user=awx
 web-server2 ansible_host=192.168.50.14 ansible_user=awx
 
 [database]
-db-server ansible_host=192.168.60.64 ansible_user=awx
+db-server ansible_host=192.168.50.15 ansible_user=awx
 
 [all:vars]
 ansible_user=root
