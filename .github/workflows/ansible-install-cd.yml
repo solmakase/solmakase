@@ -15,11 +15,11 @@ jobs:
         run: |
           echo "DB_PASSWORD=soldesk1." >> $GITHUB_ENV
           echo "AWX_PASSWORD=redhat" >> $GITHUB_ENV
-          echo "DB_SERVER=192.168.60.64" >> $GITHUB_ENV
+          echo "DB_SERVER=192.168.60.65" >> $GITHUB_ENV
           echo "ANSIBLE_MASTER=192.168.50.11" >> $GITHUB_ENV
           echo "ANSIBLE_PATH=/home/awx/ansible" >> $GITHUB_ENV
           echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/ansible" >> $GITHUB_ENV
-          echo "WEB_PASSWORD=redhat" >> $GITHUB_ENV
+          echo "WEB_PASSWORD=awx" >> $GITHUB_ENV
           
       - name: sshpass 설치 확인 (CentOS/RHEL)
         run: |
@@ -144,10 +144,6 @@ jobs:
         run: |
           echo "VM 정보를 PostgreSQL 데이터베이스에 저장 중..."
           
-          # PostgreSQL 서버 정보 설정
-          POSTGRES_SERVER="192.168.60.67"
-          POSTGRES_PORT="5000"
-          
           # PostgreSQL에 연결하기 위한 스크립트 생성
           cat > /tmp/insert_vm_info.sh << 'EOL'
           #!/bin/bash
@@ -159,12 +155,12 @@ jobs:
             
             # SQL 쿼리 생성 - 존재하면 업데이트, 없으면 삽입(UPSERT)
             SQL="INSERT INTO VM (hostname, ip_address, status) 
-                VALUES ('$hostname', '$ip_address', '$status')
-                ON CONFLICT (hostname) 
-                DO UPDATE SET 
-                  ip_address = EXCLUDED.ip_address,
-                  status = EXCLUDED.status,
-                  created_at = CURRENT_TIMESTAMP;"
+                 VALUES ('$hostname', '$ip_address', '$status')
+                 ON CONFLICT (hostname) 
+                 DO UPDATE SET 
+                   ip_address = EXCLUDED.ip_address, 
+                   status = EXCLUDED.status,
+                   created_at = CURRENT_TIMESTAMP;"
             
             echo "Executing SQL: $SQL"
             psql -d solmakasedb -c "$SQL"
@@ -181,12 +177,12 @@ jobs:
           chmod +x /tmp/insert_vm_info.sh
           
           # DB 서버로 스크립트와 VM 정보 파일 전송
-          sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${POSTGRES_SERVER} -p ${POSTGRES_PORT} "mkdir -p /tmp/vm_info"
-          sshpass -p "${{ env.DB_PASSWORD }}" scp -P ${POSTGRES_PORT} -o StrictHostKeyChecking=no /tmp/vm_info/*.json postgres@${POSTGRES_SERVER}:/tmp/vm_info/
-          sshpass -p "${{ env.DB_PASSWORD }}" scp -P ${POSTGRES_PORT} -o StrictHostKeyChecking=no /tmp/insert_vm_info.sh postgres@${POSTGRES_SERVER}:/tmp/
+          sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "mkdir -p /tmp/vm_info"
+          sshpass -p "${{ env.DB_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/vm_info/*.json postgres@${{ env.DB_SERVER }}:/tmp/vm_info/
+          sshpass -p "${{ env.DB_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/insert_vm_info.sh postgres@${{ env.DB_SERVER }}:/tmp/
           
           # DB 서버에서 스크립트 실행
-          sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${POSTGRES_SERVER} -p ${POSTGRES_PORT} "/tmp/insert_vm_info.sh"
+          sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "/tmp/insert_vm_info.sh"
           
           echo "VM 정보 저장 완료!"
           
