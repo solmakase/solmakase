@@ -36,7 +36,6 @@ app.use(express.json());
 
 // VM 데이터를 조회하는 API 추가
 app.get('/vm-data', async (req, res) => {
-<<<<<<< HEAD
     const deployMethod = req.query.deploy_method;  // deploy_method 값 받기
 
     try {
@@ -51,24 +50,13 @@ app.get('/vm-data', async (req, res) => {
 
         const result = await client.query(query, values);  // 조건에 맞는 쿼리 실행
         res.json(result.rows);  // 결과를 클라이언트에 JSON 형태로 응답
-=======
-    try {
-        // PostgreSQL에서 VM 데이터를 조회하는 SQL 쿼리
-        const result = await client.query('SELECT * FROM vm');
-
-        // 결과를 클라이언트에 JSON 형태로 응답
-        res.json(result.rows);
->>>>>>> ecd8f39 (initial commit)
     } catch (error) {
         console.error('Error fetching VM data:', error);
         res.status(500).json({ message: 'Error fetching VM data' });
     }
 });
 
-<<<<<<< HEAD
 
-=======
->>>>>>> ecd8f39 (initial commit)
 // import.meta.url로 현재 파일 경로를 가져오고, 이를 fileURLToPath로 변환
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,27 +71,22 @@ app.get('/', (req, res) => {
 
 // GitHub Action을 트리거하는 API 엔드포인트
 app.post('/trigger-github-action', async (req, res) => {
-    const workflowFileName = req.body.workflow;  // 클라이언트에서 전달된 workflow 이름
+    const { workflowFileName, repoName } = req.body;
 
     // workflowFileName이 없으면 오류 응답을 보냅니다.
-    if (!workflowFileName) {
-        return res.status(400).json({ message: 'Workflow file name is required!' });
+    if (!workflowFileName || !repoName) {
+        return res.status(400).json({ message: 'Workflow file name, repoName is required!' });
     }
 
     const token = process.env.GITHUB_TOKEN;  // 환경 변수에서 GitHub 토큰 가져오기
 
-<<<<<<< HEAD
     // GitHub 토큰이 없으면 오류 응답을 보냅니다.
-=======
-    // GitHub 토큰이 없거나 유효하지 않은 경우 처리
->>>>>>> ecd8f39 (initial commit)
     if (!token) {
         console.error('GitHub token is missing or invalid!');
         return res.status(500).json({ message: 'GitHub token is missing or invalid!' });
     }
 
     const repoOwner = "inaeeeee";  // GitHub 사용자명
-    const repoName = "Kubespray";  // GitHub 저장소명
 
     // GitHub API의 URL을 정의합니다.
     const url = `https://api.github.com/repos/${repoOwner}/${repoName}/actions/workflows/${workflowFileName}/dispatches`;
@@ -131,10 +114,7 @@ app.post('/trigger-github-action', async (req, res) => {
 
         // 응답이 실패한 경우, 응답 내용을 처리합니다.
         const errorResponse = await response.json();
-<<<<<<< HEAD
         console.error('GitHub Action error:', errorResponse);
-=======
->>>>>>> ecd8f39 (initial commit)
         return res.status(response.status).json({
             message: `GitHub Action failed: ${errorResponse.message || 'Unknown error'}`
         });
@@ -146,12 +126,11 @@ app.post('/trigger-github-action', async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
 
 // Stop-Service API - 서비스 중지 및 DB 데이터 삭제
 app.post('/stop-service', async (req, res) => {
     const deployMethod = req.body.deploy_method;  // 클라이언트에서 전달된 deploy_method 값
-    const serviceName = req.body.service_name;
+    const serviceName = req.body.service_name;  // 클라이언트에서 전달된 service_name 값
 
     if (!deployMethod) {
         return res.status(400).json({ message: 'Deploy method is required to stop the service.' });
@@ -208,42 +187,7 @@ app.post('/stop-service', async (req, res) => {
 });
 
 
-=======
-// Stop-Service API - 서비스 중지 및 DB 데이터 삭제
-app.post('/stop-service', async (req, res) => {
-    try {
-        // 1. kubernetes 서비스 중지
-        const remoteHost = "root@192.168.30.32"; // ip 이름 변경하기기
-        const stopServiceCommand = 'kubectl delete pod nginx-pod --namespace=default';  // 서비스 이름을 실제로 맞게 수정
-        
-        // SSH를 통해 원격 서버에서 명령어 실행
-        execSync(`ssh ${remoteHost} '${stopServiceCommand}'`, { stdio: 'inherit' });
-    
-        console.log('service stopped successfully on the remote server!');
-    } catch (error) {
-        console.error('Error stopping service on remote server:', error.message);
-        return res.status(500).json({ message: 'Failed to stop the service on remote server.' });
-    }
-    
-    try {
-        // 2. DB 연결 및 데이터 삭제
-        const deleteQuery = 'DELETE FROM vm';  // 데이터를 삭제할 테이블 이름 수정
-        await client.query(deleteQuery);
-
-        // 서비스 중지 및 DB 삭제 완료 메시지
-        res.json({ message: 'Service stopped and database data deleted successfully!' });
-    } catch (error) {
-        console.error('Error stopping service and deleting data:', error);
-        res.status(500).json({ message: 'Failed to stop the service and delete the data.' });
-    }
-});
-
->>>>>>> ecd8f39 (initial commit)
 // 서버 시작
 app.listen(port, '0.0.0.0', () => {
     console.log(`Server running at http://0.0.0.0:${port}`);
 });
-<<<<<<< HEAD
-=======
-
->>>>>>> ecd8f39 (initial commit)
