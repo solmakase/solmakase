@@ -19,7 +19,7 @@ jobs:
           echo "ANSIBLE_MASTER=192.168.50.11" >> $GITHUB_ENV
           echo "ANSIBLE_PATH=/home/awx/ansible" >> $GITHUB_ENV
           echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/ansible" >> $GITHUB_ENV
-          echo "WEB_PASSWORD=redhat" >> $GITHUB_ENV
+          echo "WEB_PASSWORD=awx" >> $GITHUB_ENV
           
       - name: sshpass 설치 확인 (CentOS/RHEL)
         run: |
