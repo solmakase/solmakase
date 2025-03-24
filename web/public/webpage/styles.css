@@ -9,6 +9,7 @@
     border-radius: 8px;
     cursor: pointer;
     transition: background-color 0.3s;
+    box-shadow: 0 2.5px 2.5px rgba(0, 0, 0, 0.5); /* 아래쪽에만 그림자 */
 }
 
 body {
@@ -36,6 +37,7 @@ h1 {
     top: 20px;             /* 화면 상단에서 20px 떨어지게 설정 */
     left: 20px;            /* 화면 왼쪽에서 20px 떨어지게 설정 */
     font-weight: bold;     /* 제목 글씨 굵게 */
+
 }
 
 /* 소제목 스타일 */
@@ -57,8 +59,8 @@ h2 {
     background-color: #000000;  /* 검은 배경 */
     color: #ffffff;  /* 흰 글자 색상 */
     padding: 20px;  /* 안쪽 여백 */
-    
-    width: 600px;  /* 너비를 80%로 설정 */
+    width: 90%;
+    max-width: 600px;  /* 화면 크기에 따라 너비가 조정되도록 설정 */
     height: 300px;  /* 고정 높이 */
     overflow-y: scroll;  /* 내용이 넘칠 경우 스크롤 */
     font-family: "Courier New", Courier, monospace;  /* 프롬프트 창 느낌의 폰트 */

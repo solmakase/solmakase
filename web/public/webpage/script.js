@@ -1,7 +1,13 @@
-// GitHub Action 트리거 함수
 function triggerGitHubAction(workflowFileName, repoName) {
-    fetch(`/trigger-github-action?workflow=${workflowFileName}&repo=${repoName}`, {
-        method: 'POST'
+    fetch('/trigger-github-action', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            workflowFileName: workflowFileName,  // workflowFileName을 본문에 포함
+            repoName: repoName  // repoName을 본문에 포함
+        })
     })
     .then(response => response.json())
     .then(data => {
@@ -17,6 +23,7 @@ function triggerGitHubAction(workflowFileName, repoName) {
     });
 }
 
+
 // 상태 메시지를 화면에 표시하는 함수
 function showStatusMessage(message, type) {
     const statusContainer = document.getElementById('status-message');
@@ -31,11 +38,11 @@ function showStatusMessage(message, type) {
 
 // 버튼 클릭 이벤트 리스너 추가
 const buttonsConfig = [
-    { id: 'Ansible_Button', repo: 'Ansible', workflow: 'playbook/playbook.yml', deploy_method: 'Ansible' },
+    { id: 'Ansible_Button', repo: 'Ansible', workflow: 'ansible-workflow.yml', deploy_method: 'Ansible' },
     { id: 'AnsibleStop_Button', repo: 'Ansible', workflow: 'stop-service', deploy_method: 'Ansible', service_name: 'ansible' },
-    { id: 'Docker_Button', repo: 'Docker', workflow: 'playbook/container_playbook.yml', deploy_method: 'Docker' },
+    { id: 'Docker_Button', repo: 'Docker', workflow: 'playbook.yml', deploy_method: 'Docker' },
     { id: 'DockerStop_Button', repo: 'Docker', workflow: 'stop-service', deploy_method: 'Docker', service_name: 'docker' },
-    { id: 'K8s_Button', repo: 'Kubespray', workflow: 'playbook/container_playbook.yml', deploy_method: 'Kubernetes' },
+    { id: 'K8s_Button', repo: 'Kubespray', workflow: 'lb-web.yml', deploy_method: 'Kubernetes' },
     { id: 'K8sStop_Button', repo: 'Kubespray', workflow: 'stop-service', deploy_method: 'Kubernetes', service_name: 'kubernetes' },
 ];
 
@@ -78,9 +85,9 @@ function stopServiceAndDeleteData(deployMethod) {
         if (data.message) {
             showStatusMessage(data.message, 'success');
             // 서비스 중지 후 해당 데이터를 다시 로드하여 화면 갱신
-            loadServiceData('playbook/playbook.yml', 'Ansible');
+            loadServiceData('ansible-workflow.yml', 'Ansible');
             loadServiceData('playbook/container_playbook.yml', 'Docker');
-            loadServiceData('test.yml', 'Kubernetes');  // Kubernetes 데이터도 다시 로드
+            loadServiceData('lb-web.yml', 'Kubernetes');  // Kubernetes 데이터도 다시 로드
         } else {
             showStatusMessage('Failed to stop service and delete data.', 'error');
         }
@@ -172,7 +179,7 @@ function loadServiceData(workflow, deployMethod = null) {
 
 // 페이지 로드 시 자동으로 각 서비스 데이터 로드
 document.addEventListener('DOMContentLoaded', () => {
-    loadServiceData('playbook/playbook.yml', 'Ansible');
+    loadServiceData('ansible-workflow.yml', 'Ansible');
     loadServiceData('playbook/container_playbook.yml', 'Docker');
-    loadServiceData('test.yml', 'Kubernetes');  // Kubernetes 데이터 로드
+    loadServiceData('lb-web.yml', 'Kubernetes');  // Kubernetes 데이터 로드
 });
