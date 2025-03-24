@@ -15,7 +15,7 @@ jobs:
         run: |
           echo "DB_PASSWORD=soldesk1." >> $GITHUB_ENV
           echo "AWX_PASSWORD=redhat" >> $GITHUB_ENV
-          echo "DB_SERVER=192.168.60.65" >> $GITHUB_ENV
+          echo "DB_SERVER=192.168.60.64" >> $GITHUB_ENV
           echo "ANSIBLE_MASTER=192.168.50.11" >> $GITHUB_ENV
           echo "ANSIBLE_PATH=/home/awx/ansible" >> $GITHUB_ENV
           echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/ansible" >> $GITHUB_ENV
