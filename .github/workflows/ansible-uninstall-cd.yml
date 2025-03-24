@@ -14,9 +14,9 @@ jobs:
       - name: 환경 변수 설정
         run: |
           echo "DB_PASSWORD=soldesk1." >> $GITHUB_ENV
-          echo "AWX_PASSWORD=awx" >> $GITHUB_ENV
-          echo "DB_SERVER=192.168.10.16" >> $GITHUB_ENV
-          echo "ANSIBLE_MASTER=192.168.10.10" >> $GITHUB_ENV
+          echo "AWX_PASSWORD=redhat" >> $GITHUB_ENV
+          echo "DB_SERVER=192.168.60.64" >> $GITHUB_ENV
+          echo "ANSIBLE_MASTER=192.168.50.11" >> $GITHUB_ENV
           echo "ANSIBLE_PATH=/home/awx/ansible" >> $GITHUB_ENV
           echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/ansible" >> $GITHUB_ENV
           echo "WEB_PASSWORD=awx" >> $GITHUB_ENV
