@@ -1,4 +1,4 @@
-name: Deploy with Ansible on AWX Server (CentOS 9)
+name: ansible-install-cd
 
 on:
   workflow_dispatch:  # 수동 실행 버튼 활성화
