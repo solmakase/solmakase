@@ -61,7 +61,7 @@ jobs:
             sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
               "echo '${{ env.DB_PASSWORD }}' | sudo -S rsync -avz --delete /tmp/ansible_temp/ ${{ env.DB_ANSIBLE_PATH }}/ && \
                echo '${{ env.DB_PASSWORD }}' | sudo -S chown -R postgres:postgres ${{ env.DB_ANSIBLE_PATH }} && \
-               rm -rf /tmp/ansible_temp"
+               rm -rf /tmp/ansible_+temp"
             
             echo "Ansible 코드 동기화 완료"
         
