@@ -1,6 +1,6 @@
 // GitHub Action 트리거 함수
-function triggerGitHubAction(workflowFileName) {
-    fetch(`/trigger-github-action?workflow=${workflowFileName}`, {
+function triggerGitHubAction(workflowFileName, repoName) {
+    fetch(`/trigger-github-action?workflow=${workflowFileName}&repo=${repoName}`, {
         method: 'POST'
     })
     .then(response => response.json())
@@ -31,12 +31,12 @@ function showStatusMessage(message, type) {
 
 // 버튼 클릭 이벤트 리스너 추가
 const buttonsConfig = [
-    { id: 'Ansible_Button', workflow: 'playbook/playbook.yml', deploy_method: 'Ansible' },
-    { id: 'AnsibleStop_Button', workflow: 'stop-service', deploy_method: 'Ansible', service_name: 'ansible' },
-    { id: 'Docker_Button', workflow: 'playbook/container_playbook.yml', deploy_method: 'Docker' },
-    { id: 'DockerStop_Button', workflow: 'stop-service', deploy_method: 'Docker', service_name: 'docker' },
-    { id: 'K8s_Button', workflow: 'playbook/container_playbook.yml', deploy_method: 'Kubernetes' },
-    { id: 'K8sStop_Button', workflow: 'stop-service', deploy_method: 'Kubernetes', service_name: 'kubernetes' },
+    { id: 'Ansible_Button', repo: 'Ansible', workflow: 'playbook/playbook.yml', deploy_method: 'Ansible' },
+    { id: 'AnsibleStop_Button', repo: 'Ansible', workflow: 'stop-service', deploy_method: 'Ansible', service_name: 'ansible' },
+    { id: 'Docker_Button', repo: 'Docker', workflow: 'playbook/container_playbook.yml', deploy_method: 'Docker' },
+    { id: 'DockerStop_Button', repo: 'Docker', workflow: 'stop-service', deploy_method: 'Docker', service_name: 'docker' },
+    { id: 'K8s_Button', repo: 'Kubespray', workflow: 'playbook/container_playbook.yml', deploy_method: 'Kubernetes' },
+    { id: 'K8sStop_Button', repo: 'Kubespray', workflow: 'stop-service', deploy_method: 'Kubernetes', service_name: 'kubernetes' },
 ];
 
 // 버튼 클릭 이벤트 리스너 추가
@@ -48,7 +48,7 @@ buttonsConfig.forEach(config => {
             if (isStopButton(config.id)) {
                 stopServiceAndDeleteData(config.deploy_method);  // deploy_method 전달
             } else {
-                triggerGitHubAction(config.workflow);
+                triggerGitHubAction(config.workflow, config.repo);
                 loadServiceData(config.workflow, config.deploy_method);
             }
         });

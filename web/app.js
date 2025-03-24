@@ -71,11 +71,11 @@ app.get('/', (req, res) => {
 
 // GitHub Action을 트리거하는 API 엔드포인트
 app.post('/trigger-github-action', async (req, res) => {
-    const workflowFileName = req.body.workflow;  // 클라이언트에서 전달된 workflow 이름
+    const { workflowFileName, repoName } = req.body;
 
     // workflowFileName이 없으면 오류 응답을 보냅니다.
-    if (!workflowFileName) {
-        return res.status(400).json({ message: 'Workflow file name is required!' });
+    if (!workflowFileName || !repoName) {
+        return res.status(400).json({ message: 'Workflow file name, repoName is required!' });
     }
 
     const token = process.env.GITHUB_TOKEN;  // 환경 변수에서 GitHub 토큰 가져오기
@@ -87,7 +87,6 @@ app.post('/trigger-github-action', async (req, res) => {
     }
 
     const repoOwner = "inaeeeee";  // GitHub 사용자명
-    const repoName = "Kubespray";  // GitHub 저장소명
 
     // GitHub API의 URL을 정의합니다.
     const url = `https://api.github.com/repos/${repoOwner}/${repoName}/actions/workflows/${workflowFileName}/dispatches`;
