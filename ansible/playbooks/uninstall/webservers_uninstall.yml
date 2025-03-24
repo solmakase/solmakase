@@ -1,0 +1,38 @@
+---
+- name: Nginx 제거
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Nginx 서비스 중지
+      systemd:
+        name: nginx
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+    
+    - name: apache 서비스 중지
+      systemd:
+        name: apache
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Nginx 패키지 제거
+      package:
+        name: nginx
+        state: absent
+    
+    - name: apache 패키지 제거
+      package:
+        name: apache
+        state: absent
+
+    - name: Nginx 설정 파일 제거
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /etc/nginx
+        - /etc/nginx/conf.d
+        - /var/log/nginx 
+

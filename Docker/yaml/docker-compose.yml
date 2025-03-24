@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  spacehuggers:
+    image: spacehuggers:latest
+    build:
+      context: ./SpaceHuggers
+    ports:
+      - "8080:80"
+
+  space-block-invaders:
+    image: space-block-invaders:latest
+    build:
+      context: ./space-block-invaders
+    ports:
+      - "8081:80"
+
+  black-hole-square:
+    image: black-hole-square:latest
+    build:
+      context: ./black-hole-square
+    ports:
+      - "8082:80"  # Node.js 앱에서 직접 실행
+
+  safespace:
+    image: safespace:latest
+    build:
+      context: ./SafeSpace
+    ports:
+      - "8083:80"
+
+  packabunchas:
+    image: packabunchas:latest
+    build:
+      context: ./packabunchas
+    ports:
+      - "8084:80"
+
+  space-garden:
+    image: space-garden:latest
+    build:
+      context: ./space-garden
+    ports:
+      - "8085:80"
+
+  ninja:
+    image: ninja:latest
+    build:
+      context: ./ninja
+    ports:
+      - "8086:80"
+
+  choch:
+    image: choch:latest
+    build:
+      context: ./CHOCH
+    ports:
+      - "8087:80"
+

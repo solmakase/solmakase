@@ -1,0 +1,29 @@
+---
+- name: PostgreSQL 제거
+  hosts: database
+  become: true
+  tasks:
+    - name: PostgreSQL 서비스 중지
+      systemd:
+        name: postgresql
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: PostgreSQL 패키지 제거
+      package:
+        name: "{{ item }}"
+        state: absent
+      with_items:
+        - postgresql
+        - postgresql-server
+        - postgresql-contrib
+
+    - name: PostgreSQL 데이터 디렉토리 제거
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /var/lib/pgsql
+        - /var/lib/pgsql/data
+        - /etc/postgresql 
