@@ -1,4 +1,4 @@
-name: ansible-install-cd
+name: Deploy with Ansible on AWX Server (CentOS 9)
 
 on:
   workflow_dispatch:  # 수동 실행 버튼 활성화
@@ -140,51 +140,55 @@ jobs:
           sshpass -p "${{ env.AWX_PASSWORD }}" scp -o StrictHostKeyChecking=no \
             awx@${{ env.ANSIBLE_MASTER }}:/tmp/vm_info_*.json /tmp/vm_info/
           
-      - name: PostgreSQL에 VM 정보 저장
-        run: |
-          echo "VM 정보를 PostgreSQL 데이터베이스에 저장 중..."
-          
-          # PostgreSQL에 연결하기 위한 스크립트 생성
-          cat > /tmp/insert_vm_info.sh << 'EOL'
-          #!/bin/bash
-          
-          for file in /tmp/vm_info/vm_info_*.json; do
-            hostname=$(jq -r '.hostname' $file)
-            ip_address=$(jq -r '.ip_address' $file)
-            status=$(jq -r '.status' $file)
-            
-            # SQL 쿼리 생성 - 존재하면 업데이트, 없으면 삽입(UPSERT)
-            SQL="INSERT INTO VM (hostname, ip_address, status) 
-                 VALUES ('$hostname', '$ip_address', '$status')
-                 ON CONFLICT (hostname) 
-                 DO UPDATE SET 
-                   ip_address = EXCLUDED.ip_address, 
-                   status = EXCLUDED.status,
-                   created_at = CURRENT_TIMESTAMP;"
-            
-            echo "Executing SQL: $SQL"
-            psql -d solmakasedb -c "$SQL"
-          done
-          EOL
-          
-          # jq 설치 확인 및 설치
-          if ! command -v jq &> /dev/null; then
-            echo "jq 설치 중..."
-            sudo dnf install -y jq
-          fi
-          
-          # 스크립트에 실행 권한 부여
-          chmod +x /tmp/insert_vm_info.sh
-          
-          # DB 서버로 스크립트와 VM 정보 파일 전송
-          sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "mkdir -p /tmp/vm_info"
-          sshpass -p "${{ env.DB_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/vm_info/*.json postgres@${{ env.DB_SERVER }}:/tmp/vm_info/
-          sshpass -p "${{ env.DB_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/insert_vm_info.sh postgres@${{ env.DB_SERVER }}:/tmp/
-          
-          # DB 서버에서 스크립트 실행
-          sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "/tmp/insert_vm_info.sh"
-          
-          echo "VM 정보 저장 완료!"
+			- name: PostgreSQL에 VM 정보 저장
+			  run: |
+			    echo "VM 정보를 PostgreSQL 데이터베이스에 저장 중..."
+			    
+			    # PostgreSQL에 연결하기 위한 스크립트 생성
+			    cat > /tmp/insert_vm_info.sh << 'EOL'
+			    #!/bin/bash
+			    
+			    # PostgreSQL 접속 비밀번호 설정
+			    export PGPASSWORD="qaz123"
+			    
+			    for file in /tmp/vm_info/vm_info_*.json; do
+			      hostname=$(jq -r '.hostname' $file)
+			      ip_address=$(jq -r '.ip_address' $file)
+			      status=$(jq -r '.status' $file)
+			      
+			      # SQL 쿼리 생성 - 존재하면 업데이트, 없으면 삽입(UPSERT)
+			      SQL="INSERT INTO VM (hostname, ip_address, status) 
+			           VALUES ('$hostname', '$ip_address', '$status')
+			           ON CONFLICT (hostname) 
+			           DO UPDATE SET 
+			             ip_address = EXCLUDED.ip_address, 
+			             status = EXCLUDED.status,
+			             created_at = CURRENT_TIMESTAMP;"
+			      
+			      echo "Executing SQL: $SQL"
+			      # HAProxy를 통해 항상 마스터 DB 노드로 연결 (비밀번호 설정됨)
+			      psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -c "$SQL"
+			    done
+			    EOL
+			          
+			    # jq 설치 확인 및 설치
+			    if ! command -v jq &> /dev/null; then
+			      echo "jq 설치 중..."
+			      sudo dnf install -y jq
+			    fi
+			    
+			    # 스크립트에 실행 권한 부여
+			    chmod +x /tmp/insert_vm_info.sh
+			    
+			    # DB 서버로 스크립트와 VM 정보 파일 전송
+			    sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "mkdir -p /tmp/vm_info"
+			    sshpass -p "${{ env.DB_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/vm_info/*.json postgres@${{ env.DB_SERVER }}:/tmp/vm_info/
+			    sshpass -p "${{ env.DB_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/insert_vm_info.sh postgres@${{ env.DB_SERVER }}:/tmp/
+			    
+			    # DB 서버에서 스크립트 실행
+			    sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "/tmp/insert_vm_info.sh"
+			    
+			    echo "VM 정보 저장 완료!"
           
       - name: 저장된 VM 정보 확인
         run: |
