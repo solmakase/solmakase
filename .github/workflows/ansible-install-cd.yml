@@ -151,18 +151,31 @@ jobs:
           # PostgreSQL 비밀번호 설정
           export PGPASSWORD="qaz123"
           
+          # template_id 조회 (ansible 서비스 템플릿의 ID)
+          TEMPLATE_ID=$(psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -t -c "SELECT id FROM servicetemplate WHERE name = 'ansible';" | xargs)
+          
+          if [ -z "$TEMPLATE_ID" ]; then
+            echo "서비스 템플릿 ID를 찾을 수 없습니다. 기본값 1을 사용합니다."
+            TEMPLATE_ID=1
+          fi
+          
+          echo "사용할 template_id: $TEMPLATE_ID"
+          
           for file in /tmp/vm_info/vm_info_*.json; do
             hostname=$(jq -r '.hostname' $file)
             ip_address=$(jq -r '.ip_address' $file)
             status=$(jq -r '.status' $file)
             
             # SQL 쿼리 생성 - 존재하면 업데이트, 없으면 삽입(UPSERT)
-            SQL="INSERT INTO VM (hostname, ip_address, status) 
-                 VALUES ('$hostname', '$ip_address', '$status')
+            # deploy_method 칼럼에 'ansible' 값 추가
+            SQL="INSERT INTO VM (template_id, hostname, ip_address, status, deploy_method) 
+                 VALUES ($TEMPLATE_ID, '$hostname', '$ip_address', '$status', 'ansible')
                  ON CONFLICT (hostname) 
                  DO UPDATE SET 
+                   template_id = $TEMPLATE_ID,
                    ip_address = EXCLUDED.ip_address, 
                    status = EXCLUDED.status,
+                   deploy_method = 'ansible',
                    created_at = CURRENT_TIMESTAMP;"
             
             echo "Executing SQL: $SQL"
@@ -191,3 +204,14 @@ jobs:
           # DB 서버에서 스크립트 실행
           sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} "/tmp/insert_vm_info.sh"
           
+          echo "VM 정보 저장 완료!"
+          
+      - name: 저장된 VM 정보 확인
+        run: |
+          echo "PostgreSQL에 저장된 VM 정보 확인 중..."
+          
+          VM_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
+            "psql -d solmakasedb -t -c \"SELECT * FROM VM;\"")
+            
+          echo "VM 정보:"
+          echo "$VM_INFO"
