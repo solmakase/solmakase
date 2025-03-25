@@ -132,7 +132,7 @@ jobs:
             ANSIBLE_HOST_KEY_CHECKING=False \
             ansible-playbook collect_vm_info.yml -i inventory/hosts \
             -e ansible_user=awx \
-            -e ansible_password=${{ env.WEB_PASSWORD }}"
+            -e ansible_password=${{ env.AWX_PASSWORD }}"
           
           # VM 정보 파일 가져오기
           mkdir -p /tmp/vm_info
