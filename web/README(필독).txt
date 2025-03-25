@@ -18,11 +18,11 @@ npm install pg
 
 ## 2. 실행
 .env file:
-    - token 변경
-    - ip address 변경
-    - Service Command 명령어 변경 
-    
-# docker stop: 시스템 명령어(쉘 명령어)를 실행하고, 그 결과를 동기적으로 기다리는 명령어
+    - token
+    - ip address
+    - Service Command 명령어 확인
+
+# systemctl stop {service_name}: 시스템 명령어(쉘 명령어)를 실행하고, 그 결과를 동기적으로 기다리는 명령어
 
 npm start
 

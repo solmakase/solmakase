@@ -1,0 +1,19 @@
+---
+- name: 서비스 제거 스크립트 실행
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: 서비스 제거 시작
+      debug:
+        msg: "모든 서비스 제거를 시작합니다."
+
+# 각 서비스 제거를 순차적으로 실행합니다
+
+- name: 로드밸런서(HAProxy) 제거
+  import_playbook: "{{ playbook_dir }}/playbooks/uninstall/haproxy_uninstall.yml"
+
+- name: 웹 서버(Nginx) 제거
+  import_playbook: "{{ playbook_dir }}/playbooks/uninstall/webservers_uninstall.yml"
+
+- name: 데이터베이스(PostgreSQL) 제거
+  import_playbook: "{{ playbook_dir }}/playbooks/uninstall/database_uninstall.yml" 

@@ -1,0 +1,20 @@
+global
+    daemon
+    user haproxy
+    group haproxy
+
+defaults
+    mode    http
+    timeout connect 5000
+    timeout client  50000
+    timeout server  50000
+
+frontend http_front
+    bind *:80
+    default_backend http_back
+
+backend http_back
+    balance roundrobin
+    server web-server1 192.168.10.12:80 check
+    server web-server2 192.168.10.13:80 check
+

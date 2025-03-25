@@ -1,17 +1,49 @@
 /* 공통 버튼 스타일 */
 .styled-button {
-    background-color: #ffffff;
-    color: #000000;
+    display: flex;
+    align-items: center;   /* 세로 중앙 정렬 */
+    justify-content: center;  /* 가로 중앙 정렬 */
+    position: relative;
+    text-align: center;
+    background-image: url('/webpage/image/plate.jpg');
+    background-size: 100% 100%;
+    background-color: transparent;
     width: 200px;
     height: 50px;
+    margin-bottom: 20px;
+    margin-right: 20px;
+    font-size: 16px;
+    border: 1px solid #cccccc;
+    border-radius: 8px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: background-color 0.3s;
+    box-shadow: 0 2.5px 2.5px rgba(0, 0, 0, 0.5);
+}
+
+.reload-button{
+    background-color: #ffffff;
+    color: #000000;
+    width: 50px;
+    height: 50px;
+    margin-bottom: 20px;
+    margin-right: 20px;
     font-size: 16px;
     border: 1px solid #cccccc;
     border-radius: 8px;
     cursor: pointer;
     transition: background-color 0.3s;
+    box-shadow: 0 2.5px 2.5px rgba(0, 0, 0, 0.5); /* 아래쪽에만 그림자 */
+}
+
+.reload-icon {
+    width: 19px; /* 이미지 크기 */
+    height: 19px;
 }
 
 body {
+    padding-right: 300px;
+    background-image: url('/webpage/image/black_background.jpg'); /* 이미지 파일 경로 */
     display: flex;
     justify-content: center;
     align-items: flex-start;
@@ -22,48 +54,101 @@ body {
     text-align: center;
 }
 
+.long-image-container {
+    position: absolute;
+    top: 20px;  /* 페이지 상단에서 일정 거리 */
+    right: 20px; /* 페이지 오른쪽에 위치 */
+    width: 250px;  /* 이미지 크기 조정 */
+    height: 100%;  /* 세로 크기를 100%로 설정 */
+}
+
+.long-image {
+    margin-top: 200px;
+    width: 100%;  /* 이미지가 div 영역에 맞게 채워짐 */
+    height: auto;  /* 비율에 맞춰서 세로 크기 자동 조정 */
+}
+
 /* 버튼 호버 및 클릭 효과 */
 .styled-button:hover, .styled-button:active {
     background-color: #f0f0f0;
 }
 
+.reload-button:hover, .reload-button:active {
+    background-color: #f0f0f0;
+}
+
+/* 버튼 호버 및 클릭 효과 */
+.reload-button:hover .reload-icon, 
+.reload-button:active .reload-icon{
+    filter: brightness(0.96) invert(0); /* 흰색을 #f0f0f0로 변환 */
+}
+
 h1 {
     font-size: 36px;       /* 제목의 크기 */
-    color: #333;           /* 제목 글자 색상 */
+    color: #ffffff;           /* 제목 글자 색상 */
     margin-top: 10px;             /* 제목과 다른 요소들 간의 여백 제거 */
+    margin: 0;             /* 제목과 다른 요소들 간의 여백 제거 */
     position: absolute;    /* 절대 위치 지정 */
     top: 20px;             /* 화면 상단에서 20px 떨어지게 설정 */
     left: 20px;            /* 화면 왼쪽에서 20px 떨어지게 설정 */
     font-weight: bold;     /* 제목 글씨 굵게 */
+
 }
 
 /* 소제목 스타일 */
 h2 {
     margin-top: 40px;   
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     font-size: 24px;
-    color: #333;
+    color: #ffffff;
 }
 
 .horizontal-line {
     border: none;
     border-top: 2px solid #c2c2c2;  /* 선 두께와 색상 */
-    width: 100%;  /* 화면 너비에 맞게 */
+    width: 122.5%;  /* 화면 너비에 맞게 */
+}
+
+.overlay-image {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 0; /* 이미지가 텍스트 아래에 위치하도록 조정 */
+}
+
+.start-text, .stop-text {
+    position: relative;  /* absolute 제거 */
+    font-size: 18px;
+    font-weight: bold;
+    color: #000000;
+    text-shadow: 2px 2px 5px rgba(255, 255, 255, 1);
+    z-index: 1;
 }
 
 /* VM 데이터 표시 영역 스타일 */
-#Web-service-data-container, #K8s-service-data-container, #LB-service-data-container, #DB-service-data-container {
-    background-color: #000000;  /* 검은 배경 */
+#Ansible-service-data-container, #K8s-service-data-container, #Docker-service-data-container {
+    background-image: url('/webpage/image/board.jpg'); /* 이미지 파일 경로 */
+    background-size: 110% 110%;  /* 버튼의 크기에 맞게 이미지 찌그러짐 */
+    background-position: center;  /* 이미지가 버튼 중앙에 오도록 설정 */
+    background-repeat: no-repeat;  /* 이미지가 반복되지 않도록 설정 */
+    background-color: transparent;  /* 배경색을 투명하게 설정하여 하얀 배경이 보이지 않도록 함 */
     color: #ffffff;  /* 흰 글자 색상 */
     padding: 20px;  /* 안쪽 여백 */
-    
-    width: 600px;  /* 너비를 80%로 설정 */
+    width: 100%;
+    max-width: 1000px;  /* 화면 크기에 따라 너비가 조정되도록 설정 */
     height: 300px;  /* 고정 높이 */
     overflow-y: scroll;  /* 내용이 넘칠 경우 스크롤 */
     font-family: "Courier New", Courier, monospace;  /* 프롬프트 창 느낌의 폰트 */
     white-space: pre-wrap;  /* 줄 바꿈 및 공백 처리 */
     border: 1px solid #333;  /* 경계선 추가 */
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);  /* 그림자 효과 */
-    margin-top: 20px;
+}
+
+.button-group {
+    display: flex;
+    flex-direction: row;  /* 버튼을 가로로 정렬 */
+    align-items: center;  /* 세로 중앙 정렬 */
+    gap: 10px;  /* 버튼 간 간격 추가 */
 }
 

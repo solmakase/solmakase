@@ -1,0 +1,70 @@
+---
+- name: PostgreSQL 저장소 설치
+  dnf:
+    name:
+      - postgresql-server
+      - python3-psycopg2
+    state: present
+
+- name: PostgreSQL 데이터베이스 초기화
+  command: postgresql-setup --initdb
+  args:
+    creates: /var/lib/pgsql/data/postgresql.conf
+
+- name: 데이터베이스 서비스 시작 및 활성화
+  systemd:
+    name: postgresql
+    state: started
+    enabled: yes
+
+- name: PostgreSQL 데이터베이스 포트 개방
+  firewalld:
+    port: 5432/tcp
+    permanent: yes
+    state: enabled
+  notify: reload firewalld
+
+- name: 데이터베이스 생성
+  become: yes
+  become_user: postgres
+  postgresql_db:
+    name: "{{ postgres_db_name }}"
+    encoding: UTF-8
+    state: present
+
+- name: 데이터베이스 사용자 생성
+  become: yes
+  become_user: postgres
+  postgresql_user:
+    name: "{{ postgres_user }}"
+    password: "{{ postgres_password }}"
+    role_attr_flags: CREATEDB,LOGIN
+    state: present
+
+- name: 사용자에게 데이터베이스 권한 부여
+  become: yes
+  become_user: postgres
+  postgresql_privs:
+    type: database
+    database: "{{ postgres_db_name }}"
+    roles: "{{ postgres_user }}"
+    privs: ALL
+    state: present
+
+- name: PostgreSQL 원격 접속 허용
+  lineinfile:
+    path: "/var/lib/pgsql/data/postgresql.conf"
+    regexp: "^#?listen_addresses\\s*="
+    line: "listen_addresses = '*'"
+    state: present
+  notify: restart postgresql
+
+- name: PostgreSQL 원격 접속 보안 설정
+  template:
+    src: pg_hba.conf.j2
+    dest: "/var/lib/pgsql/data/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: '0600'
+  notify: restart postgresql
+

@@ -1,0 +1,24 @@
+---
+- name: HAProxy 제거
+  hosts: lb
+  become: true
+  tasks:
+    - name: HAProxy 서비스 중지
+      systemd:
+        name: haproxy
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: HAProxy 패키지 제거
+      package:
+        name: haproxy
+        state: absent
+
+    - name: HAProxy 설정 파일 제거
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /etc/haproxy
+        - /etc/haproxy/haproxy.cfg 

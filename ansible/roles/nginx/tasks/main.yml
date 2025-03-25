@@ -1,0 +1,280 @@
+---
+- name: Nginx 서비스 중지 및 비활성화 (충돌 방지)
+  systemd:
+    name: nginx
+    state: stopped
+    enabled: no
+  ignore_errors: yes
+
+- name: 포트 80 사용 중인 프로세스 확인
+  shell: ss -tlnp | grep ':80 '
+  register: port_80_check
+  changed_when: false
+  ignore_errors: yes
+
+- name: 포트 80 사용 상태 표시
+  debug:
+    var: port_80_check.stdout_lines
+  when: port_80_check is defined
+
+- name: 포트 80 사용 중인 프로세스 종료
+  shell: pkill -f nginx || true
+  changed_when: true
+  ignore_errors: yes
+- name: Apache 설치
+  dnf:
+    name: 
+      - httpd
+      - mod_ssl
+    state: present
+
+- name: SSL 인증서 디렉토리 확인
+  file:
+    path: /etc/pki/tls/certs
+    state: directory
+    mode: '0755'
+
+- name: SSL 키 디렉토리 확인
+  file:
+    path: /etc/pki/tls/private
+    state: directory
+    mode: '0755'
+
+- name: 자체 서명 SSL 인증서 생성
+  command: >
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048
+    -keyout /etc/pki/tls/private/localhost.key
+    -out /etc/pki/tls/certs/localhost.crt
+    -subj "/C=KR/ST=Seoul/L=Seoul/O=Example/OU=IT/CN=localhost"
+  args:
+    creates: /etc/pki/tls/certs/localhost.crt
+
+- name: SSL 인증서 및 키 권한 설정
+  file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  with_items:
+    - /etc/pki/tls/certs/localhost.crt
+    - /etc/pki/tls/private/localhost.key
+
+- name: Node.js 설치를 위한 NodeSource 리포지토리 추가
+  shell: |
+    curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+  args:
+    creates: /etc/yum.repos.d/nodesource-el9.repo
+  register: node_repo_result
+  ignore_errors: true
+
+- name: Node.js 저장소 추가 실패 시 대체 방법
+  dnf:
+    name: nodejs
+    state: present
+    enablerepo: epel
+  when: node_repo_result is failed
+
+- name: Node.js 설치
+  dnf:
+    name: nodejs
+    state: present
+  when: node_repo_result is success
+
+- name: PostgreSQL 클라이언트 라이브러리 설치
+  dnf:
+    name: 
+      - postgresql
+      - postgresql-libs
+    state: present
+
+- name: 배포 디렉토리 생성
+  file:
+    path: "{{ deploy_path | default('/var/www/app') }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: 테스트 Node.js 애플리케이션 생성
+  copy:
+    content: |
+      const http = require('http');
+      const server = http.createServer((req, res) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('Hello World\n');
+      });
+      const port = {{ app_port | default(8080) }};
+      server.listen(port, () => {
+        console.log(`Server running at http://localhost:${port}/`);
+      });
+    dest: "{{ deploy_path | default('/var/www/app') }}/server.js"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: 애플리케이션 서비스 파일 생성
+  template:
+    src: app.service.j2
+    dest: /etc/systemd/system/{{ app_name | default('app') }}.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload systemd
+
+- name: Apache 기본 설정 백업
+  copy:
+    src: /etc/httpd/conf/httpd.conf
+    dest: /etc/httpd/conf/httpd.conf.bak
+    remote_src: yes
+    force: no
+
+- name: 기존 SSL 설정 파일 백업
+  copy:
+    src: /etc/httpd/conf.d/ssl.conf
+    dest: /etc/httpd/conf.d/ssl.conf.bak
+    remote_src: yes
+    force: no
+  ignore_errors: yes
+
+- name: SSL 설정 파일 비활성화
+  command: mv /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf.disabled
+  args:
+    removes: /etc/httpd/conf.d/ssl.conf
+  ignore_errors: yes
+
+- name: 사용자 정의 SSL 설정 파일 배포
+  template:
+    src: ssl.conf.j2
+    dest: /etc/httpd/conf.d/ssl.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart httpd
+
+- name: Apache 설정 파일 배포
+  template:
+    src: httpd.conf.j2
+    dest: /etc/httpd/conf.d/{{ app_name | default('app') }}.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart httpd
+
+- name: Apache 포트 개방 (HTTP)
+  firewalld:
+    port: "80/tcp"
+    permanent: yes
+    state: enabled
+  notify: reload firewalld
+
+- name: Apache 포트 개방 (HTTPS)
+  firewalld:
+    port: "443/tcp"
+    permanent: yes
+    state: enabled
+  notify: reload firewalld
+
+- name: SELinux - 웹 콘텐츠 디렉토리 설정
+  sefcontext:
+    target: '{{ deploy_path | default("/var/www/app") }}(/.*)?'
+    setype: httpd_sys_content_t
+    state: present
+
+- name: SELinux - 컨텍스트 적용
+  command: "restorecon -Rv {{ deploy_path | default('/var/www/app') }}"
+  changed_when: false
+
+- name: SELinux - 네트워크 연결 허용
+  seboolean:
+    name: httpd_can_network_connect
+    state: yes
+    persistent: yes
+
+- name: Systemd 데몬 리로드
+  systemd:
+    daemon_reload: yes
+
+- name: 애플리케이션 서비스 시작 및 활성화
+  systemd:
+    name: "{{ app_name | default('app') }}"
+    state: started
+    enabled: yes
+
+- name: Apache 설정 테스트
+  command: apachectl configtest
+  register: apache_config_test
+  changed_when: false
+  ignore_errors: true
+
+- name: Apache 설정 테스트 결과 표시
+  debug:
+    var: apache_config_test.stderr_lines
+  when: apache_config_test is defined
+
+- name: Apache 서비스 상태 확인
+  command: systemctl status httpd
+  register: httpd_status
+  changed_when: false
+  ignore_errors: yes
+
+- name: Apache 서비스 상태 표시
+  debug:
+    var: httpd_status.stdout_lines
+  when: httpd_status is defined
+
+- name: 모든 Apache 설정 파일 목록 확인
+  find:
+    paths: /etc/httpd/conf.d
+    patterns: "*.conf"
+  register: apache_conf_files
+
+- name: Apache 설정 파일 목록 표시
+  debug:
+    var: apache_conf_files.files | map(attribute='path') | list
+
+- name: 포트 80 사용 중인지 확인
+  shell: ss -tlnp | grep ':80 '
+  register: port_80_check
+  changed_when: false
+  ignore_errors: yes
+
+- name: 포트 80 사용 상태 표시
+  debug:
+    var: port_80_check.stdout_lines
+  when: port_80_check is defined
+
+- name: Apache 서비스 시작 (디버그 모드)
+  command: httpd -X
+  register: httpd_debug
+  async: 10
+  poll: 0
+  ignore_errors: yes
+
+- name: 잠시 대기
+  pause:
+    seconds: 5
+
+- name: Apache 디버그 로그 확인
+  command: journalctl -u httpd --no-pager -n 50
+  register: httpd_logs
+  changed_when: false
+
+- name: Apache 로그 표시
+  debug:
+    var: httpd_logs.stdout_lines
+
+- name: Apache 서비스 시작 및 활성화
+  systemd:
+    name: httpd
+    state: started
+    enabled: yes
+  ignore_errors: yes
+
+- name: Nginx 서비스 중지 및 비활성화 (충돌 방지)
+  systemd:
+    name: nginx
+    state: stopped
+    enabled: no
+  ignore_errors: yes
+

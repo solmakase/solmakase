@@ -1,0 +1,22 @@
+[Unit]
+Description={{ app_name }} application
+After=network.target
+
+[Service]
+Environment=NODE_ENV=production
+Environment=PORT={{ app_port | default(8080) }}
+Environment=DB_HOST=192.168.10.14
+Environment=DB_PORT=5432
+Environment=DB_NAME={{ app_name | default('app') }}
+Environment=DB_USER={{ app_name | default('app') }}_user
+
+Type=simple
+User={{ ansible_user }}
+WorkingDirectory={{ deploy_path }}
+ExecStart=/usr/bin/node {{ deploy_path }}/server.js
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+

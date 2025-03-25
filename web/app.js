@@ -10,8 +10,14 @@ const { Client } = pg;  // Client를 추출
 // 환경 변수 로드
 dotenv.config();
 
+// 필수 환경 변수 체크
+if (!process.env.DB_USER || !process.env.DB_PASSWORD || !process.env.GITHUB_TOKEN) {
+    console.error('Missing required environment variables');
+    process.exit(1);
+}
+
 const app = express();  // express 앱을 정의해야 합니다.
-const port = 3000;
+const port = process.env.PORT || 3000; // 포트 번호 환경 변수로 설정
 
 // PostgreSQL 클라이언트 설정
 const client = new Client({
@@ -23,13 +29,15 @@ const client = new Client({
 });
 
 // PostgreSQL 클라이언트 연결
-client.connect()
-    .then(() => {
+const connectToDatabase = async () => {
+    try {
+        await client.connect();
         console.log("Connected to the database");
-    })
-    .catch((err) => {
+    } catch (err) {
         console.error("Connection error", err.stack);
-    });
+    }
+};
+connectToDatabase();
 
 // 요청 본문을 JSON 형식으로 파싱하는 미들웨어
 app.use(express.json());
@@ -40,7 +48,7 @@ app.get('/vm-data', async (req, res) => {
 
     try {
         // PostgreSQL에서 VM 데이터를 조회하는 SQL 쿼리
-        let query = 'SELECT * FROM VM';  // 기본 쿼리
+        let query = 'SELECT id, template_id, hostname, ip_address, status, deploy_method, created_at FROM vm';
         let values = [];
 
         if (deployMethod) {
@@ -56,7 +64,6 @@ app.get('/vm-data', async (req, res) => {
     }
 });
 
-
 // import.meta.url로 현재 파일 경로를 가져오고, 이를 fileURLToPath로 변환
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,11 +78,11 @@ app.get('/', (req, res) => {
 
 // GitHub Action을 트리거하는 API 엔드포인트
 app.post('/trigger-github-action', async (req, res) => {
-    const workflowFileName = req.body.workflow;  // 클라이언트에서 전달된 workflow 이름
+    const { workflowFileName, repoName } = req.body;
 
     // workflowFileName이 없으면 오류 응답을 보냅니다.
-    if (!workflowFileName) {
-        return res.status(400).json({ message: 'Workflow file name is required!' });
+    if (!workflowFileName || !repoName) {
+        return res.status(400).json({ message: 'Workflow file name, repoName is required!' });
     }
 
     const token = process.env.GITHUB_TOKEN;  // 환경 변수에서 GitHub 토큰 가져오기
@@ -87,7 +94,6 @@ app.post('/trigger-github-action', async (req, res) => {
     }
 
     const repoOwner = "inaeeeee";  // GitHub 사용자명
-    const repoName = "Kubespray";  // GitHub 저장소명
 
     // GitHub API의 URL을 정의합니다.
     const url = `https://api.github.com/repos/${repoOwner}/${repoName}/actions/workflows/${workflowFileName}/dispatches`;
@@ -110,27 +116,59 @@ app.post('/trigger-github-action', async (req, res) => {
 
         // GitHub API 응답이 204(No Content)인 경우
         if (response.status === 204) {
-            return res.json({ message: 'GitHub Action triggered successfully!' });
+            console.log('GitHub Action triggered successfully!');
+
+            // GitHub Action 트리거 후 DB에서 데이터를 가져오기
+            const deployMethod = 'docker';  // 예시: docker를 배포 방법으로 사용
+            const query = 'SELECT * FROM vm WHERE deploy_method = $1';  // 해당 deploy_method로 필터링
+
+            try {
+                const result = await client.query(query, [deployMethod]);  // DB에서 데이터 조회
+                const vmData = result.rows;  // 데이터 받아오기
+
+                // 데이터가 있는 경우 클라이언트에 응답
+                if (vmData.length > 0) {
+                    return res.json({ 
+                        message: 'GitHub Action triggered successfully!',
+                        data: vmData  // DB 데이터 포함
+                    });
+                } else {
+                    return res.json({ 
+                        message: 'GitHub Action triggered successfully, but no data found for the deploy method.', 
+                        data: [] 
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching VM data from database:', error);
+                return res.status(500).json({ message: 'Failed to fetch VM data from the database.' });
+            }
+        } else {
+            const errorResponse = await response.json();
+            console.error('GitHub Action error:', errorResponse);
+            return res.status(response.status).json({
+                message: `GitHub Action failed: ${errorResponse.message || 'Unknown error'}`,
+            });
         }
 
-        // 응답이 실패한 경우, 응답 내용을 처리합니다.
-        const errorResponse = await response.json();
-        console.error('GitHub Action error:', errorResponse);
-        return res.status(response.status).json({
-            message: `GitHub Action failed: ${errorResponse.message || 'Unknown error'}`
-        });
-
     } catch (error) {
-        // 오류가 발생한 경우 처리
         console.error('Error triggering GitHub Action:', error);
         return res.status(500).json({ message: 'Failed to trigger GitHub Action.' });
     }
 });
 
-
 // Stop-Service API - 서비스 중지 및 DB 데이터 삭제
+const stopServiceOnHost = (remoteHost, stopServiceCommand) => {
+    try {
+        execSync(`ssh ${remoteHost} '${stopServiceCommand}'`, { stdio: 'inherit' });
+        console.log(`Service stopped successfully on IP: ${remoteHost}`);
+    } catch (error) {
+        console.error(`Error stopping service on IP: ${remoteHost}`, error.message);
+    }
+};
+
 app.post('/stop-service', async (req, res) => {
     const deployMethod = req.body.deploy_method;  // 클라이언트에서 전달된 deploy_method 값
+    const serviceName = req.body.service_name;  // 클라이언트에서 전달된 service_name 값
 
     if (!deployMethod) {
         return res.status(400).json({ message: 'Deploy method is required to stop the service.' });
@@ -140,7 +178,7 @@ app.post('/stop-service', async (req, res) => {
         // 1. deploy_method에 해당하는 IP 주소와 호스트명 조회 (vm_data 테이블 사용)
         const serviceQuery = `
             SELECT ip_address, hostname
-            FROM VM
+            FROM vm
             WHERE deploy_method = $1
         `;
         const result = await client.query(serviceQuery, [deployMethod]);
@@ -150,20 +188,18 @@ app.post('/stop-service', async (req, res) => {
         }
 
         // 2. 각 IP에 대해 서비스 종료 명령 실행
-        const stopServiceCommand = process.env.stopServiceCommand;  // 환경 변수에서 종료 명령 불러오기
+        let stopServiceCommand = process.env.stopServiceCommand;  // 환경 변수에서 종료 명령 불러오기
+
+        if (deployMethod === "docker") {
+            stopServiceCommand = `docker stop $(docker ps -q)`;  // docker 컨테이너 중지 명령
+        } else {
+            stopServiceCommand = `kubectl delete pods --all`;  // docker 컨테이너 중지 명령
+        }
+
         for (const row of result.rows) {
-            const remoteHost = row.ip_address;  // 서비스가 배포된 IP 주소
-            const stopCommand = stopServiceCommand.replace("{serviceName}", deployMethod);  // deploy_method를 서비스 이름으로 사용
-
+            const remoteHost = "192.168.30.32";  // 서비스가 배포된 IP 주소
             console.log(`Stopping service on IP: ${remoteHost}`);
-
-            // SSH를 통해 원격 서버에서 명령어 실행
-            try {
-                execSync(`ssh ${remoteHost} '${stopCommand}'`, { stdio: 'inherit' });
-                console.log(`Service stopped successfully on IP: ${remoteHost}`);
-            } catch (error) {
-                console.error(`Error stopping service on IP: ${remoteHost}`, error.message);
-            }
+            stopServiceOnHost(remoteHost, stopServiceCommand);  // 서비스 중지 함수 호출
         }
 
     } catch (error) {
@@ -186,8 +222,7 @@ app.post('/stop-service', async (req, res) => {
     }
 });
 
-
 // 서버 시작
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running at http://0.0.0.0:${port}`);
 });

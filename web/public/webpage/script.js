@@ -1,7 +1,13 @@
-// GitHub Action 트리거 함수
-function triggerGitHubAction(workflowFileName) {
-    fetch(`/trigger-github-action?workflow=${workflowFileName}`, {
-        method: 'POST'
+function triggerGitHubAction(workflowFileName, repoName) {
+    fetch('/trigger-github-action', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            workflowFileName: workflowFileName,  // workflowFileName을 본문에 포함
+            repoName: repoName  // repoName을 본문에 포함
+        })
     })
     .then(response => response.json())
     .then(data => {
@@ -17,6 +23,7 @@ function triggerGitHubAction(workflowFileName) {
     });
 }
 
+
 // 상태 메시지를 화면에 표시하는 함수
 function showStatusMessage(message, type) {
     const statusContainer = document.getElementById('status-message');
@@ -31,14 +38,14 @@ function showStatusMessage(message, type) {
 
 // 버튼 클릭 이벤트 리스너 추가
 const buttonsConfig = [
-    { id: 'Web_Button', workflow: 'playbook/playbook.yml', deploy_method: 'Web' },
-    { id: 'WebStop_Button', workflow: 'stop-service', deploy_method: 'Web' },
-    { id: 'K8s_Button', workflow: 'playbook/container_playbook.yml', deploy_method: 'Kubernetes' },
-    { id: 'K8sStop_Button', workflow: 'stop-service', deploy_method: 'Kubernetes' }, 
-    { id: 'LB_Button', workflow: 'playbook/k8s_playbook.yml', deploy_method: 'Loadbalance' },
-    { id: 'LBStop_Button', workflow: 'stop-service', deploy_method: 'Loadbalance' },
-    { id: 'DB_Button', workflow: 'test.yml', deploy_method: 'Database' },
-    { id: 'DBStop_Button', workflow: 'stop-service', deploy_method: 'Database' }
+    { id: 'Ansible_Button', repo: 'Ansible', workflow: 'ansible-workflow.yml', deploy_method: 'ansible' },
+    { id: 'AnsibleStop_Button', repo: 'Ansible', workflow: 'stop-service', deploy_method: 'ansible', service_name: 'ansible' },
+    { id: 'Docker_Button', repo: 'Docker', workflow: 'main.yml', deploy_method: 'docker' },
+    { id: 'DockerStop_Button', repo: 'Docker', workflow: 'stop-service', deploy_method: 'docker', service_name: 'docker' },
+    { id: 'K8s_Button', repo: 'Kubespray', workflow: 'lb-web.yml', deploy_method: 'k8s' },
+    { id: 'K8sStop_Button', repo: 'Kubespray', workflow: 'stop-service', deploy_method: 'k8s', service_name: 'kubernetes' },
+    { id: 'Monitoring_Button', repo: 'Kubespray', workflow: 'monitoring.yml', deploy_method: 'k8s' },
+    { id: 'MonitoringStop_Button', repo: 'Kubespray', workflow: 'stop-service', deploy_method: 'k8s', service_name: 'kubernetes' },
 ];
 
 // 버튼 클릭 이벤트 리스너 추가
@@ -50,7 +57,7 @@ buttonsConfig.forEach(config => {
             if (isStopButton(config.id)) {
                 stopServiceAndDeleteData(config.deploy_method);  // deploy_method 전달
             } else {
-                triggerGitHubAction(config.workflow);
+                triggerGitHubAction(config.workflow, config.repo);
                 loadServiceData(config.workflow, config.deploy_method);
             }
         });
@@ -80,10 +87,10 @@ function stopServiceAndDeleteData(deployMethod) {
         if (data.message) {
             showStatusMessage(data.message, 'success');
             // 서비스 중지 후 해당 데이터를 다시 로드하여 화면 갱신
-            loadServiceData('playbook/playbook.yml', 'Web');
-            loadServiceData('playbook/container_playbook.yml', 'Kubernetes');
-            loadServiceData('playbook/k8s_playbook.yml', 'Loadbalance');
-            loadServiceData('test.yml', 'Database');
+            loadServiceData('ansible-workflow.yml', 'ansible');
+            loadServiceData('main.yml', 'docker');
+            loadServiceData('lb-web.yml', 'k8s'); 
+            loadServiceData('monitoring.yml', 'k8s');  
         } else {
             showStatusMessage('Failed to stop service and delete data.', 'error');
         }
@@ -95,21 +102,19 @@ function stopServiceAndDeleteData(deployMethod) {
 }
 
 // VM 데이터 로드 함수 (로딩 메시지 및 시간 표시)
+// 서비스 데이터 로드 함수 (로딩 메시지 및 시간 표시)
 function loadServiceData(workflow, deployMethod = null) {
     // 각 서비스에 맞는 컨테이너 선택
     let serviceDataContainerId = '';
     switch (deployMethod) {
-        case 'Web':
-            serviceDataContainerId = 'Web-service-data-container';
+        case 'ansible':
+            serviceDataContainerId = 'Ansible-service-data-container';
             break;
-        case 'Kubernetes':
+        case 'docker':
+            serviceDataContainerId = 'Docker-service-data-container';
+            break;
+        case 'k8s':
             serviceDataContainerId = 'K8s-service-data-container';
-            break;
-        case 'Loadbalance':
-            serviceDataContainerId = 'LB-service-data-container';
-            break;
-        case 'Database':
-            serviceDataContainerId = 'DB-service-data-container';
             break;
         default:
             console.warn('Unknown deploy method:', deployMethod);
@@ -140,7 +145,7 @@ function loadServiceData(workflow, deployMethod = null) {
                     // 테이블 헤더 생성
                     const header = table.createTHead();
                     const headerRow = header.insertRow();
-                    const headers = ['Template_id', 'Hostname', 'IP Address', 'Status', 'Deploy_method', 'Created At'];
+                    const headers = ['ID', 'Template_id', 'Hostname', 'IP Address', 'Status', 'Deploy_method', 'Created At'];
                     headers.forEach(headerText => {
                         const th = document.createElement('th');
                         th.style.border = '1px solid #ccc';
@@ -151,9 +156,9 @@ function loadServiceData(workflow, deployMethod = null) {
 
                     // 테이블 본문에 vm_data 삽입
                     const tbody = table.createTBody();
-                    data.forEach(VM => {
+                    data.forEach(vm => {
                         const row = tbody.insertRow();
-                        Object.values(VM).forEach(value => {
+                        Object.values(vm).forEach(value => {
                             const cell = row.insertCell();
                             cell.style.border = '1px solid #ccc';
                             cell.style.padding = '8px';
@@ -164,6 +169,7 @@ function loadServiceData(workflow, deployMethod = null) {
                     // 기존의 내용 지우고 테이블을 추가
                     serviceDataContainer.innerHTML = '';  // 기존 내용 제거
                     serviceDataContainer.appendChild(table);  // 테이블 추가
+                
                 } else {
                     // 데이터가 없으면 "데이터가 없습니다" 출력
                     serviceDataContainer.innerHTML = 'No VM data available';
@@ -176,11 +182,35 @@ function loadServiceData(workflow, deployMethod = null) {
     }
 }
 
+
 // 페이지 로드 시 자동으로 각 서비스 데이터 로드
 document.addEventListener('DOMContentLoaded', () => {
-    // 각 서비스에 대해 데이터를 불러옵니다.
-    loadServiceData('playbook/playbook.yml', 'Web');
-    loadServiceData('playbook/container_playbook.yml', 'Kubernetes');
-    loadServiceData('playbook/k8s_playbook.yml', 'Loadbalance');
-    loadServiceData('test.yml', 'Database');
+    loadServiceData('ansible-workflow.yml', 'ansible');
+    loadServiceData('main.yml', 'docker');
+    loadServiceData('lb-web.yml', 'k8s');  
+    loadServiceData('monitoring.yml', 'k8s');  
 });
+
+// 버튼 클릭 이벤트 리스너 추가 (새로 고침 버튼)
+const refreshButtonsConfig = [
+    { id: 'DockerRefresh_Button', workflow: 'main.yml', deployMethod: 'docker' },
+    { id: 'K8sRefresh_Button', workflow: 'lb-web.yml', deployMethod: 'k8s' },
+    { id: 'AnsibleRefresh_Button', workflow: 'ansible-workflow.yml', deployMethod: 'ansible' },
+    { id: 'MonitoringRefresh_Button', workflow: 'monitoring.yml', deployMethod: 'k8s' }
+];
+
+// 새로 고침 버튼에 대한 이벤트 리스너 추가
+refreshButtonsConfig.forEach(config => {
+    const button = document.getElementById(config.id);
+    
+    if (button) {
+        button.addEventListener('click', () => {
+            showStatusMessage('Refreshing service data', 'info');  // 새로 고침 중 메시지 표시
+            loadServiceData(config.workflow, config.deployMethod);  // 해당 서비스의 데이터 로드
+        });
+    } else {
+        console.warn(`Button with ID ${config.id} not found.`);
+    }
+});
+
+
