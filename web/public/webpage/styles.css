@@ -1,7 +1,11 @@
 /* 공통 버튼 스타일 */
 .styled-button {
-    background-color: #ffffff;
-    color: #000000;
+    background-image: url('/webpage/plate.jpg');  /* 버튼에 사용할 이미지 */
+    background-size: 100% 100%;  /* 이미지가 버튼 크기에 맞게 꽉 차도록 설정 */
+    background-position: center;  /* 이미지가 버튼 중앙에 오도록 설정 */
+    background-repeat: no-repeat;  /* 이미지가 반복되지 않도록 설정 */
+    background-color: transparent;  /* 배경색을 투명하게 설정하여 하얀 배경이 보이지 않도록 함 */
+
     width: 200px;
     height: 50px;
     margin-bottom: 20px;
@@ -14,7 +18,28 @@
     box-shadow: 0 2.5px 2.5px rgba(0, 0, 0, 0.5); /* 아래쪽에만 그림자 */
 }
 
+.reload-button{
+    background-color: #ffffff;
+    color: #000000;
+    width: 50px;
+    height: 50px;
+    margin-bottom: 20px;
+    margin-right: 20px;
+    font-size: 16px;
+    border: 1px solid #cccccc;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    box-shadow: 0 2.5px 2.5px rgba(0, 0, 0, 0.5); /* 아래쪽에만 그림자 */
+}
+
+.reload-icon {
+    width: 19px; /* 이미지 크기 */
+    height: 19px;
+}
+
 body {
+    background-image: url('/webpage/black_background.jpg'); /* 이미지 파일 경로 */
     display: flex;
     justify-content: center;
     align-items: flex-start;
@@ -30,9 +55,19 @@ body {
     background-color: #f0f0f0;
 }
 
+.reload-button:hover, .reload-button:active {
+    background-color: #f0f0f0;
+}
+
+/* 버튼 호버 및 클릭 효과 */
+.reload-button:hover .reload-icon, 
+.reload-button:active .reload-icon{
+    filter: brightness(0.96) invert(0); /* 흰색을 #f0f0f0로 변환 */
+}
+
 h1 {
     font-size: 36px;       /* 제목의 크기 */
-    color: #333;           /* 제목 글자 색상 */
+    color: #ffffff;           /* 제목 글자 색상 */
     margin-top: 10px;             /* 제목과 다른 요소들 간의 여백 제거 */
     margin: 0;             /* 제목과 다른 요소들 간의 여백 제거 */
     position: absolute;    /* 절대 위치 지정 */
@@ -47,7 +82,7 @@ h2 {
     margin-top: 40px;   
     margin-bottom: 10px;
     font-size: 24px;
-    color: #333;
+    color: #ffffff;
 }
 
 .horizontal-line {
@@ -58,7 +93,11 @@ h2 {
 
 /* VM 데이터 표시 영역 스타일 */
 #Ansible-service-data-container, #K8s-service-data-container, #Docker-service-data-container {
-    background-color: #000000;  /* 검은 배경 */
+    background-image: url('/webpage/board.jpg'); /* 이미지 파일 경로 */
+    background-size: 110% 110%;  /* 버튼의 크기에 맞게 이미지 찌그러짐 */
+    background-position: center;  /* 이미지가 버튼 중앙에 오도록 설정 */
+    background-repeat: no-repeat;  /* 이미지가 반복되지 않도록 설정 */
+    background-color: transparent;  /* 배경색을 투명하게 설정하여 하얀 배경이 보이지 않도록 함 */
     color: #ffffff;  /* 흰 글자 색상 */
     padding: 20px;  /* 안쪽 여백 */
     width: 90%;

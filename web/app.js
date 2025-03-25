@@ -10,8 +10,14 @@ const { Client } = pg;  // Client를 추출
 // 환경 변수 로드
 dotenv.config();
 
+// 필수 환경 변수 체크
+if (!process.env.DB_USER || !process.env.DB_PASSWORD || !process.env.GITHUB_TOKEN) {
+    console.error('Missing required environment variables');
+    process.exit(1);
+}
+
 const app = express();  // express 앱을 정의해야 합니다.
-const port = 3000;
+const port = process.env.PORT || 3000; // 포트 번호 환경 변수로 설정
 
 // PostgreSQL 클라이언트 설정
 const client = new Client({
@@ -23,13 +29,15 @@ const client = new Client({
 });
 
 // PostgreSQL 클라이언트 연결
-client.connect()
-    .then(() => {
+const connectToDatabase = async () => {
+    try {
+        await client.connect();
         console.log("Connected to the database");
-    })
-    .catch((err) => {
+    } catch (err) {
         console.error("Connection error", err.stack);
-    });
+    }
+};
+connectToDatabase();
 
 // 요청 본문을 JSON 형식으로 파싱하는 미들웨어
 app.use(express.json());
@@ -40,7 +48,7 @@ app.get('/vm-data', async (req, res) => {
 
     try {
         // PostgreSQL에서 VM 데이터를 조회하는 SQL 쿼리
-        let query = 'SELECT * FROM vm';  // 기본 쿼리
+        let query = 'SELECT id, template_id, hostname, ip_address, status, deploy_method, created_at FROM vm';
         let values = [];
 
         if (deployMethod) {
@@ -55,7 +63,6 @@ app.get('/vm-data', async (req, res) => {
         res.status(500).json({ message: 'Error fetching VM data' });
     }
 });
-
 
 // import.meta.url로 현재 파일 경로를 가져오고, 이를 fileURLToPath로 변환
 const __filename = fileURLToPath(import.meta.url);
@@ -149,9 +156,16 @@ app.post('/trigger-github-action', async (req, res) => {
     }
 });
 
-
-
 // Stop-Service API - 서비스 중지 및 DB 데이터 삭제
+const stopServiceOnHost = (remoteHost, stopServiceCommand) => {
+    try {
+        execSync(`ssh ${remoteHost} '${stopServiceCommand}'`, { stdio: 'inherit' });
+        console.log(`Service stopped successfully on IP: ${remoteHost}`);
+    } catch (error) {
+        console.error(`Error stopping service on IP: ${remoteHost}`, error.message);
+    }
+};
+
 app.post('/stop-service', async (req, res) => {
     const deployMethod = req.body.deploy_method;  // 클라이언트에서 전달된 deploy_method 값
     const serviceName = req.body.service_name;  // 클라이언트에서 전달된 service_name 값
@@ -173,32 +187,20 @@ app.post('/stop-service', async (req, res) => {
             return res.status(404).json({ message: `No services found for deploy method: ${deployMethod}` });
         }
 
-        // // 2. 각 IP에 대해 서비스 종료 명령 실행
-        // const stopServiceCommand = process.env.stopServiceCommand;  // 환경 변수에서 종료 명령 불러오기
+        // 2. 각 IP에 대해 서비스 종료 명령 실행
+        let stopServiceCommand = process.env.stopServiceCommand;  // 환경 변수에서 종료 명령 불러오기
 
-        
+        if (deployMethod === "docker") {
+            stopServiceCommand = `docker stop $(docker ps -q)`;  // docker 컨테이너 중지 명령
+        } else {
+            stopServiceCommand = `kubectl delete pods --all`;  // docker 컨테이너 중지 명령
+        }
+
         for (const row of result.rows) {
-            const remoteHost = row.ip_address;  // 서비스가 배포된 IP 주소
-
-            if (deployMethod === "docker") {
-                // Docker 환경인 경우 Docker 컨테이너 중지 명령
-                stopServiceCommand = `docker stop $(docker pa -q)`;
-            }
-            // } else {
-            //     // 다른 배포 방법에 대한 서비스 종료 명령
-            //     stopServiceCommand = process.env.stopServiceCommand.replace("{serviceName}", serviceName);
-            // }
-            
+            const remoteHost = "192.168.30.32";  // 서비스가 배포된 IP 주소
             console.log(`Stopping service on IP: ${remoteHost}`);
-
-            // SSH를 통해 원격 서버에서 명령어 실행
-            try {
-                execSync(`ssh ${remoteHost} '${stopCommand}'`, { stdio: 'inherit' });
-                console.log(`Service stopped successfully on IP: ${remoteHost}`);
-            } catch (error) {   
-                console.error(`Error stopping service on IP: ${remoteHost}`, error.message);
-            }
-        } 
+            stopServiceOnHost(remoteHost, stopServiceCommand);  // 서비스 중지 함수 호출
+        }
 
     } catch (error) {
         console.error('Error fetching services and IPs from database:', error.message);
@@ -219,7 +221,6 @@ app.post('/stop-service', async (req, res) => {
         return res.status(500).json({ message: 'Failed to stop the service and delete the data.' });
     }
 });
-
 
 // 서버 시작
 app.listen(port, '0.0.0.0', () => {

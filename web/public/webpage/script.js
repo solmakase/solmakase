@@ -102,6 +102,7 @@ function stopServiceAndDeleteData(deployMethod) {
 }
 
 // VM 데이터 로드 함수 (로딩 메시지 및 시간 표시)
+// 서비스 데이터 로드 함수 (로딩 메시지 및 시간 표시)
 function loadServiceData(workflow, deployMethod = null) {
     // 각 서비스에 맞는 컨테이너 선택
     let serviceDataContainerId = '';
@@ -168,6 +169,7 @@ function loadServiceData(workflow, deployMethod = null) {
                     // 기존의 내용 지우고 테이블을 추가
                     serviceDataContainer.innerHTML = '';  // 기존 내용 제거
                     serviceDataContainer.appendChild(table);  // 테이블 추가
+                
                 } else {
                     // 데이터가 없으면 "데이터가 없습니다" 출력
                     serviceDataContainer.innerHTML = 'No VM data available';
@@ -180,6 +182,7 @@ function loadServiceData(workflow, deployMethod = null) {
     }
 }
 
+
 // 페이지 로드 시 자동으로 각 서비스 데이터 로드
 document.addEventListener('DOMContentLoaded', () => {
     loadServiceData('ansible-workflow.yml', 'ansible');
@@ -187,3 +190,27 @@ document.addEventListener('DOMContentLoaded', () => {
     loadServiceData('lb-web.yml', 'k8s');  
     loadServiceData('monitoring.yml', 'k8s');  
 });
+
+// 버튼 클릭 이벤트 리스너 추가 (새로 고침 버튼)
+const refreshButtonsConfig = [
+    { id: 'DockerRefresh_Button', workflow: 'main.yml', deployMethod: 'docker' },
+    { id: 'K8sRefresh_Button', workflow: 'lb-web.yml', deployMethod: 'k8s' },
+    { id: 'AnsibleRefresh_Button', workflow: 'ansible-workflow.yml', deployMethod: 'ansible' },
+    { id: 'MonitoringRefresh_Button', workflow: 'monitoring.yml', deployMethod: 'k8s' }
+];
+
+// 새로 고침 버튼에 대한 이벤트 리스너 추가
+refreshButtonsConfig.forEach(config => {
+    const button = document.getElementById(config.id);
+    
+    if (button) {
+        button.addEventListener('click', () => {
+            showStatusMessage('Refreshing service data', 'info');  // 새로 고침 중 메시지 표시
+            loadServiceData(config.workflow, config.deployMethod);  // 해당 서비스의 데이터 로드
+        });
+    } else {
+        console.warn(`Button with ID ${config.id} not found.`);
+    }
+});
+
+
