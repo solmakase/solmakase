@@ -19,7 +19,6 @@ jobs:
           echo "ANSIBLE_MASTER=192.168.50.11" >> $GITHUB_ENV
           echo "ANSIBLE_PATH=/home/awx/ansible" >> $GITHUB_ENV
           echo "DB_ANSIBLE_PATH=/var/lib/pgsql/data/service_templates/ansible" >> $GITHUB_ENV
-          echo "WEB_PASSWORD=redhat" >> $GITHUB_ENV
           
       - name: sshpass 설치 확인 (CentOS/RHEL)
         run: |
@@ -95,25 +94,14 @@ jobs:
           cat > /tmp/update_vm_status.sh << 'EOL'
           #!/bin/bash
           
-          # PostgreSQL 비밀번호 설정
           export PGPASSWORD="qaz123"
           
-          # template_id 조회 (ansible 서비스 템플릿의 ID)
-          TEMPLATE_ID=$(psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -t -c "SELECT id FROM servicetemplate WHERE name = 'ansible';" | xargs)
+          # 192.168.50% IP 대역의 VM 상태만 'stopped'로 업데이트 (HAProxy 통해 마스터 DB에 연결)
+          psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -c "UPDATE VM SET status = 'stopped', updated_at = CURRENT_TIMESTAMP WHERE ip_address LIKE '192.168.50%';"
           
-          if [ -z "$TEMPLATE_ID" ]; then
-            echo "서비스 템플릿 ID를 찾을 수 없습니다. 기본값 1을 사용합니다."
-            TEMPLATE_ID=1
-          fi
-          
-          echo "사용할 template_id: $TEMPLATE_ID"
-          
-          # 192.168 IP 대역의 VM 상태만 'stopped'로 업데이트 (HAProxy 통해 마스터 DB에 연결)
-          psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -c "UPDATE VM SET status = 'stopped', updated_at = CURRENT_TIMESTAMP WHERE ip_address LIKE '192.168%' AND deploy_method = 'ansible';"
-          
-          # 업데이트된 VM 정보 확인
+          # 업데이트된 VM 정보 확인 (조회는 기존 연결 사용)
           echo "업데이트된 VM 정보:"
-          psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -t -c "SELECT * FROM VM WHERE ip_address LIKE '192.168%' AND deploy_method = 'ansible';"
+          psql -d solmakasedb -t -c "SELECT * FROM VM WHERE ip_address LIKE '192.168.50%';"
           EOL
           
           # 스크립트에 실행 권한 부여
@@ -130,9 +118,9 @@ jobs:
           echo "PostgreSQL에 저장된 VM 정보 확인 중..."
           
           VM_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
-            "psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -t -c \"SELECT * FROM VM WHERE deploy_method = 'ansible' ORDER BY created_at DESC;\"")
+            "psql -d solmakasedb -t -c \"SELECT * FROM VM WHERE ip_address LIKE '192.168.50%';\"")
             
-          echo "Ansible VM 정보:"
+          echo "VM 정보:"
           echo "$VM_INFO"
           
       - name: PostgreSQL에 VM 정보 삭제
@@ -143,19 +131,18 @@ jobs:
           cat > /tmp/delete_vm_info.sh << 'EOL'
           #!/bin/bash
           
-          # PostgreSQL 비밀번호 설정
           export PGPASSWORD="qaz123"
           
           # 삭제 전 VM 정보 백업
           echo "삭제 전 VM 정보 백업:"
-          psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -t -c "SELECT * FROM VM WHERE deploy_method = 'ansible' AND status = 'stopped';"
+          psql -d solmakasedb -t -c "SELECT * FROM VM WHERE ip_address LIKE '192.168.50%' AND status = 'stopped';"
           
-          # 192.168 IP 대역의 stopped 상태 VM 정보만 삭제 (HAProxy 통해 마스터 DB에 연결)
-          psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -c "DELETE FROM VM WHERE deploy_method = 'ansible' AND status = 'stopped';"
+          # 192.168.50% IP 대역의 stopped 상태 VM 정보만 삭제 (HAProxy 통해 마스터 DB에 연결)
+          psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -c "DELETE FROM VM WHERE ip_address LIKE '192.168.50%' AND status = 'stopped';"
           
-          # 남은 VM 정보 확인
+          # 남은 VM 정보 확인 (조회는 기존 연결 사용)
           echo "남은 VM 정보:"
-          psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -t -c "SELECT * FROM VM WHERE deploy_method = 'ansible';"
+          psql -d solmakasedb -t -c "SELECT * FROM VM;"
           EOL
           
           # 스크립트에 실행 권한 부여
@@ -172,7 +159,7 @@ jobs:
           echo "PostgreSQL에 저장된 최종 VM 정보 확인 중..."
           
           VM_INFO=$(sshpass -p "${{ env.DB_PASSWORD }}" ssh -o StrictHostKeyChecking=no postgres@${{ env.DB_SERVER }} \
-            "psql -h 192.168.60.67 -p 5000 -U postgres -d solmakasedb -t -c \"SELECT * FROM VM ORDER BY created_at DESC LIMIT 20;\"")
+            "psql -d solmakasedb -t -c \"SELECT * FROM VM ORDER BY created_at DESC LIMIT 20;\"")
             
           echo "최종 VM 정보:"
           echo "$VM_INFO"
