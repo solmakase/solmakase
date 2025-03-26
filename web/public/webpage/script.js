@@ -9,8 +9,14 @@ function triggerGitHubAction(workflowFileName, repoName) {
             repoName: repoName  // repoName을 본문에 포함
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Response Data:', data);  // 응답 데이터 확인
         if (data.message) {
             showStatusMessage(data.message, 'success');
         } else {
@@ -22,6 +28,7 @@ function triggerGitHubAction(workflowFileName, repoName) {
         showStatusMessage('Failed to trigger GitHub Action. Please check the console for details.', 'error');
     });
 }
+
 
 
 // 상태 메시지를 화면에 표시하는 함수
