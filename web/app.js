@@ -95,7 +95,7 @@ app.post('/trigger-github-action', async (req, res) => {
     // repository owner 매핑
     const repoMapping = {
         'ansible-install-cd.yml': 'solmakase',
-        'default': 'inaeeee'
+        'default': 'inaeeeee'
     };
     let repoOwner = repoMapping[workflowFileName] || repoMapping['default'];
 

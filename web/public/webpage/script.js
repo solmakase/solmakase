@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
 const refreshButtonsConfig = [
     { id: 'DockerRefresh_Button', workflow: 'main.yml', deployMethod: 'docker' },
     { id: 'K8sRefresh_Button', workflow: 'lb-web.yml', deployMethod: 'k8s' },
-    { id: 'AnsibleRefresh_Button', workflow: 'ansible-workflow.yml', deployMethod: 'ansible' },
+    { id: 'AnsibleRefresh_Button', workflow: 'ansible-install-cd.yml', deployMethod: 'ansible' },
     { id: 'MonitoringRefresh_Button', workflow: 'monitoring.yml', deployMethod: 'k8s' }
 ];
 
