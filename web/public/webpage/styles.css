@@ -65,7 +65,7 @@ body {
 .long-image {
     margin-top: 200px;
     width: 100%;  /* 이미지가 div 영역에 맞게 채워짐 */
-    height: auto;  /* 비율에 맞춰서 세로 크기 자동 조정 */
+    height: 100%;  /* 비율에 맞춰서 세로 크기 자동 조정 */
 }
 
 /* 버튼 호버 및 클릭 효과 */
@@ -133,7 +133,7 @@ h2 {
     background-position: center;  /* 이미지가 버튼 중앙에 오도록 설정 */
     background-repeat: no-repeat;  /* 이미지가 반복되지 않도록 설정 */
     background-color: transparent;  /* 배경색을 투명하게 설정하여 하얀 배경이 보이지 않도록 함 */
-    color: #ffffff;  /* 흰 글자 색상 */
+    color: #000000;  /* 흰 글자 색상 */
     padding: 20px;  /* 안쪽 여백 */
     width: 100%;
     max-width: 1000px;  /* 화면 크기에 따라 너비가 조정되도록 설정 */

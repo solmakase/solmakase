@@ -38,8 +38,8 @@ function showStatusMessage(message, type) {
 
 // 버튼 클릭 이벤트 리스너 추가
 const buttonsConfig = [
-    { id: 'Ansible_Button', repo: 'Ansible', workflow: 'ansible-workflow.yml', deploy_method: 'ansible' },
-    { id: 'AnsibleStop_Button', repo: 'Ansible', workflow: 'stop-service', deploy_method: 'ansible', service_name: 'ansible' },
+    { id: 'Ansible_Button', repo: 'solmakase', workflow: 'ansible-install-cd.yml', deploy_method: 'ansible' },
+    { id: 'AnsibleStop_Button', repo: 'solmakase', workflow: 'stop-service', deploy_method: 'ansible', service_name: 'ansible' },
     { id: 'Docker_Button', repo: 'Docker', workflow: 'main.yml', deploy_method: 'docker' },
     { id: 'DockerStop_Button', repo: 'Docker', workflow: 'stop-service', deploy_method: 'docker', service_name: 'docker' },
     { id: 'K8s_Button', repo: 'Kubespray', workflow: 'lb-web.yml', deploy_method: 'k8s' },
@@ -87,7 +87,7 @@ function stopServiceAndDeleteData(deployMethod) {
         if (data.message) {
             showStatusMessage(data.message, 'success');
             // 서비스 중지 후 해당 데이터를 다시 로드하여 화면 갱신
-            loadServiceData('ansible-workflow.yml', 'ansible');
+            loadServiceData('ansible-install-cd.yml', 'ansible');
             loadServiceData('main.yml', 'docker');
             loadServiceData('lb-web.yml', 'k8s'); 
             loadServiceData('monitoring.yml', 'k8s');  
@@ -140,7 +140,7 @@ function loadServiceData(workflow, deployMethod = null) {
                     const table = document.createElement('table');
                     table.style.width = '100%';
                     table.style.borderCollapse = 'collapse';
-                    table.style.color = '#ffffff';  // 흰색 글자
+                    table.style.color = '#000000';  // 흰색 글자
 
                     // 테이블 헤더 생성
                     const header = table.createTHead();
@@ -148,7 +148,7 @@ function loadServiceData(workflow, deployMethod = null) {
                     const headers = ['ID', 'Template_id', 'Hostname', 'IP Address', 'Status', 'Deploy_method', 'Created At'];
                     headers.forEach(headerText => {
                         const th = document.createElement('th');
-                        th.style.border = '1px solid #ccc';
+                        th.style.border = '1px solid #000000';
                         th.style.padding = '8px';
                         th.textContent = headerText;
                         headerRow.appendChild(th);
@@ -160,7 +160,7 @@ function loadServiceData(workflow, deployMethod = null) {
                         const row = tbody.insertRow();
                         Object.values(vm).forEach(value => {
                             const cell = row.insertCell();
-                            cell.style.border = '1px solid #ccc';
+                            cell.style.border = '1px solid #000000';
                             cell.style.padding = '8px';
                             cell.textContent = value;
                         });
@@ -185,7 +185,7 @@ function loadServiceData(workflow, deployMethod = null) {
 
 // 페이지 로드 시 자동으로 각 서비스 데이터 로드
 document.addEventListener('DOMContentLoaded', () => {
-    loadServiceData('ansible-workflow.yml', 'ansible');
+    loadServiceData('ansible-install-cd.yml', 'ansible');
     loadServiceData('main.yml', 'docker');
     loadServiceData('lb-web.yml', 'k8s');  
     loadServiceData('monitoring.yml', 'k8s');  
